@@ -1,6 +1,7 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Clock, CreditCard, Check } from "lucide-react";
 
 export const Hero = () => {
   return (
@@ -35,11 +36,11 @@ export const Hero = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="text-4xl md:text-6xl font-bold mb-4 text-gray-900"
+              className="text-4xl md:text-6xl font-bold mb-4"
             >
               Fresh Milk Delivered
               <br />
-              <span className="text-sage-600">Right to Your Doorstep</span>
+              <span className="text-[#437358]">Right to Your Doorstep</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -57,19 +58,19 @@ export const Hero = () => {
             >
               <Button
                 size="lg"
-                className="bg-sage-600 hover:bg-sage-700 text-white min-w-[160px]"
+                className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px]"
               >
                 Admin Login
               </Button>
               <Button
                 size="lg"
-                className="bg-sage-600 hover:bg-sage-700 text-white min-w-[160px]"
+                className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px]"
               >
                 Farmer Login
               </Button>
               <Button
                 size="lg"
-                className="bg-sage-600 hover:bg-sage-700 text-white min-w-[160px]"
+                className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px]"
               >
                 Customer Login
               </Button>
@@ -80,21 +81,35 @@ export const Hero = () => {
 
       {/* Footer Icons */}
       <div className="absolute bottom-8 left-0 right-0">
-        <div className="flex justify-center gap-16">
-          <div className="p-4 bg-sage-600 rounded-lg text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-            </svg>
-          </div>
-          <div className="p-4 bg-sage-600 rounded-lg text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
-            </svg>
-          </div>
-          <div className="p-4 bg-sage-600 rounded-lg text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-            </svg>
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-center gap-8 md:gap-16">
+            <div className="flex flex-col items-center text-center">
+              <div className="p-4 bg-[#437358] rounded-lg text-white mb-3">
+                <Clock className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Real-time Tracking</h3>
+              <p className="text-gray-600 max-w-xs">
+                Track your delivery in real-time and never miss your milk delivery.
+              </p>
+            </div>
+            <div className="flex flex-col items-center text-center">
+              <div className="p-4 bg-[#437358] rounded-lg text-white mb-3">
+                <CreditCard className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Secure Payments</h3>
+              <p className="text-gray-600 max-w-xs">
+                Pay securely through our integrated wallet system.
+              </p>
+            </div>
+            <div className="flex flex-col items-center text-center">
+              <div className="p-4 bg-[#437358] rounded-lg text-white mb-3">
+                <Check className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Quality Guaranteed</h3>
+              <p className="text-gray-600 max-w-xs">
+                Fresh milk sourced directly from local farmers.
+              </p>
+            </div>
           </div>
         </div>
       </div>
