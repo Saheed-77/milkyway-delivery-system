@@ -29,7 +29,7 @@ export const Hero = () => {
       </nav>
 
       {/* Hero Content */}
-      <div className="pt-24 min-h-[90vh] flex items-center justify-center bg-cream-50">
+      <div className="pt-24 min-h-[80vh] flex items-center justify-center bg-cream-50">
         <div className="container px-4 mx-auto">
           <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
             <motion.h1
@@ -80,7 +80,7 @@ export const Hero = () => {
       </div>
 
       {/* Footer Icons */}
-      <div className="absolute bottom-8 left-0 right-0">
+      <div className="py-20 bg-cream-50">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-center gap-8 md:gap-16">
             <div className="flex flex-col items-center text-center">
