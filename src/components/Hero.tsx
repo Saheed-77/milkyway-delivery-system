@@ -2,6 +2,7 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Clock, CreditCard, Check } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export const Hero = () => {
   return (
@@ -56,24 +57,30 @@ export const Hero = () => {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="flex flex-wrap justify-center gap-4"
             >
-              <Button
-                size="lg"
-                className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px]"
-              >
-                Admin Login
-              </Button>
-              <Button
-                size="lg"
-                className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px]"
-              >
-                Farmer Login
-              </Button>
-              <Button
-                size="lg"
-                className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px]"
-              >
-                Customer Login
-              </Button>
+              <Link to="/auth/admin">
+                <Button
+                  size="lg"
+                  className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px]"
+                >
+                  Admin Login
+                </Button>
+              </Link>
+              <Link to="/auth/farmer">
+                <Button
+                  size="lg"
+                  className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px]"
+                >
+                  Farmer Login
+                </Button>
+              </Link>
+              <Link to="/auth/customer">
+                <Button
+                  size="lg"
+                  className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px]"
+                >
+                  Customer Login
+                </Button>
+              </Link>
             </motion.div>
           </div>
         </div>
