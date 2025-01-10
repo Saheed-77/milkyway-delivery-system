@@ -52,7 +52,7 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
           title: "Success!",
           description: "You have been logged in successfully.",
         });
-        navigate("/dashboard");
+        navigate(`/dashboard/${userType}`);
       }
     } catch (error) {
       toast({

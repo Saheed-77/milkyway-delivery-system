@@ -9,6 +9,181 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      delivery_slots: {
+        Row: {
+          booked_count: number
+          capacity: number
+          created_at: string
+          id: string
+          slot_time: string
+          status: string
+        }
+        Insert: {
+          booked_count?: number
+          capacity: number
+          created_at?: string
+          id?: string
+          slot_time: string
+          status?: string
+        }
+        Update: {
+          booked_count?: number
+          capacity?: number
+          created_at?: string
+          id?: string
+          slot_time?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      milk_contributions: {
+        Row: {
+          contribution_date: string
+          created_at: string
+          farmer_id: string
+          id: string
+          quality_rating: number | null
+          quantity: number
+        }
+        Insert: {
+          contribution_date?: string
+          created_at?: string
+          farmer_id: string
+          id?: string
+          quality_rating?: number | null
+          quantity: number
+        }
+        Update: {
+          contribution_date?: string
+          created_at?: string
+          farmer_id?: string
+          id?: string
+          quality_rating?: number | null
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milk_contributions_farmer_id_fkey"
+            columns: ["farmer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          product_id: string
+          quantity: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          product_id: string
+          quantity: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          product_id?: string
+          quantity?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          customer_id: string
+          delivery_slot: string | null
+          id: string
+          qr_code: string | null
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          delivery_slot?: string | null
+          id?: string
+          qr_code?: string | null
+          status?: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          delivery_slot?: string | null
+          id?: string
+          qr_code?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          price: number
+          stock_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          price: number
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -33,6 +208,84 @@ export type Database = {
           last_name?: string | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          customer_id: string
+          frequency: string
+          id: string
+          next_delivery: string | null
+          product_id: string
+          quantity: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          frequency: string
+          id?: string
+          next_delivery?: string | null
+          product_id: string
+          quantity: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          frequency?: string
+          id?: string
+          next_delivery?: string | null
+          product_id?: string
+          quantity?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          status: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          status?: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          status?: string
+          transaction_type?: string
+          user_id?: string
         }
         Relationships: []
       }
