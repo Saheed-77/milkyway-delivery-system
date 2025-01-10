@@ -41,17 +41,29 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
           description: "Please check your email to verify your account.",
         });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
 
+        // After successful login, get the user's profile to determine their type
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("user_type")
+          .eq("id", data.user.id)
+          .single();
+
+        if (profile?.user_type !== userType) {
+          throw new Error("Invalid user type for this login page");
+        }
+
         toast({
           title: "Success!",
           description: "You have been logged in successfully.",
         });
+        
         navigate(`/dashboard/${userType}`);
       }
     } catch (error) {

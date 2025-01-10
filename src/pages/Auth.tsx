@@ -12,7 +12,16 @@ const Auth = () => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/dashboard");
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("user_type")
+          .eq("id", session.user.id)
+          .single();
+
+        // Redirect based on user type
+        if (profile?.user_type) {
+          navigate(`/dashboard/${profile.user_type}`);
+        }
       }
     };
     checkAuth();
