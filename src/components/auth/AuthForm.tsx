@@ -24,7 +24,7 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -34,29 +34,36 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
           }
         });
 
-        if (error) throw error;
+        if (signUpError) throw signUpError;
 
         toast({
           title: "Success!",
           description: "Please check your email to verify your account.",
         });
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // First, try to sign in
+        const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        if (error) throw error;
+        if (signInError) throw signInError;
+
+        if (!user) throw new Error("No user data returned");
 
         // After successful login, get the user's profile to determine their type
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("user_type")
-          .eq("id", data.user.id)
+          .eq("id", user.id)
           .single();
 
+        if (profileError) throw profileError;
+
         if (profile?.user_type !== userType) {
-          throw new Error("Invalid user type for this login page");
+          // If wrong user type, sign out immediately
+          await supabase.auth.signOut();
+          throw new Error(`This account is registered as a ${profile?.user_type}. Please use the correct login page.`);
         }
 
         toast({
@@ -72,6 +79,8 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
         description: error.message,
         variant: "destructive",
       });
+      // If there was an error, make sure user is signed out
+      await supabase.auth.signOut();
     } finally {
       setIsLoading(false);
     }
