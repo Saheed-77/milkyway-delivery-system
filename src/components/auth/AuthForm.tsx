@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 
 interface AuthFormProps {
-  userType: 'admin' | 'farmer' | 'customer';
+  userType: 'admin' | 'farmer' | 'customer' | 'delivery';
 }
 
 export const AuthForm = ({ userType }: AuthFormProps) => {

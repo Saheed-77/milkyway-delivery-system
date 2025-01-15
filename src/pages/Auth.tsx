@@ -41,13 +41,13 @@ const Auth = () => {
     checkAuthAndUserType();
   }, [navigate, userType, toast]);
 
-  if (!["admin", "farmer", "customer"].includes(userType)) {
+  if (!["admin", "farmer", "customer", "delivery"].includes(userType)) {
     return <div>Invalid user type</div>;
   }
 
   return (
     <div className="min-h-screen bg-[#f8f7f3] flex flex-col items-center justify-center">
-      <AuthForm userType={userType as "admin" | "farmer" | "customer"} />
+      <AuthForm userType={userType as "admin" | "farmer" | "customer" | "delivery"} />
     </div>
   );
 };
