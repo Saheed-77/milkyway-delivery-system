@@ -306,6 +306,7 @@ export type Database = {
     }
     Enums: {
       user_type: "admin" | "farmer" | "customer"
+      user_type_new: "admin" | "farmer" | "customer" | "delivery"
     }
     CompositeTypes: {
       [_ in never]: never
