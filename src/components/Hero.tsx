@@ -1,7 +1,7 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Clock, CreditCard, Check } from "lucide-react";
+import { Clock, CreditCard, Check, Truck } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export const Hero = () => {
@@ -79,6 +79,15 @@ export const Hero = () => {
                   className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px]"
                 >
                   Customer Login
+                </Button>
+              </Link>
+              <Link to="/auth/delivery">
+                <Button
+                  size="lg"
+                  className="bg-[#437358] hover:bg-[#345c46] text-white min-w-[160px] flex items-center gap-2"
+                >
+                  <Truck className="w-4 h-4" />
+                  Delivery Login
                 </Button>
               </Link>
             </motion.div>
