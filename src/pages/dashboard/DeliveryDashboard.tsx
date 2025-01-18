@@ -4,9 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Truck } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 const DeliveryDashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     const checkUser = async () => {
@@ -33,6 +35,26 @@ const DeliveryDashboard = () => {
     checkUser();
   }, [navigate]);
 
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+      
+      navigate('/auth/delivery');
+    } catch (error) {
+      toast({
+        title: "Error signing out",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8f7f3] p-6">
       <div className="max-w-7xl mx-auto">
@@ -40,7 +62,7 @@ const DeliveryDashboard = () => {
           <h1 className="text-3xl font-bold text-[#437358]">Delivery Dashboard</h1>
           <Button
             variant="outline"
-            onClick={() => supabase.auth.signOut()}
+            onClick={handleSignOut}
             className="text-[#437358]"
           >
             Sign Out
