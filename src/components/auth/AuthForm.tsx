@@ -10,6 +10,12 @@ interface AuthFormProps {
   userType: 'admin' | 'farmer' | 'customer' | 'delivery';
 }
 
+interface UserProfile {
+  id: string;
+  user_type: 'admin' | 'farmer' | 'customer' | 'delivery';
+  status?: 'pending' | 'approved' | 'rejected';
+}
+
 export const AuthForm = ({ userType }: AuthFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -83,13 +89,15 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
 
         if (profileError) throw profileError;
 
-        if (profile?.user_type !== userType) {
+        if (!profile) throw new Error("No profile found");
+
+        if (profile.user_type !== userType) {
           await supabase.auth.signOut();
-          throw new Error(`This account is registered as a ${profile?.user_type}. Please use the correct login page.`);
+          throw new Error(`This account is registered as a ${profile.user_type}. Please use the correct login page.`);
         }
 
         // For farmers, check if they're approved
-        if (userType === 'farmer' && profile?.status !== 'approved') {
+        if (userType === 'farmer' && profile.status !== 'approved') {
           await supabase.auth.signOut();
           throw new Error("Your account is pending admin approval.");
         }

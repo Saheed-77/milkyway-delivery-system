@@ -10,7 +10,7 @@ import { Check, X } from "lucide-react";
 interface FarmerProfile {
   id: string;
   email: string;
-  status: string;
+  status: 'pending' | 'approved' | 'rejected';
   created_at: string;
 }
 
@@ -58,8 +58,10 @@ const AdminDashboard = () => {
       return;
     }
 
-    setPendingFarmers(farmers.filter(f => f.status === 'pending'));
-    setApprovedFarmers(farmers.filter(f => f.status === 'approved'));
+    if (farmers) {
+      setPendingFarmers(farmers.filter(f => f.status === 'pending'));
+      setApprovedFarmers(farmers.filter(f => f.status === 'approved'));
+    }
   };
 
   const handleFarmerStatus = async (farmerId: string, status: 'approved' | 'rejected') => {

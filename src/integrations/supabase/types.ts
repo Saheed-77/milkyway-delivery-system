@@ -187,25 +187,31 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          email: string | null
           first_name: string | null
           id: string
           last_name: string | null
+          status: Database["public"]["Enums"]["profile_status"] | null
           updated_at: string
           user_type: Database["public"]["Enums"]["user_type"]
         }
         Insert: {
           created_at?: string
+          email?: string | null
           first_name?: string | null
           id: string
           last_name?: string | null
+          status?: Database["public"]["Enums"]["profile_status"] | null
           updated_at?: string
           user_type: Database["public"]["Enums"]["user_type"]
         }
         Update: {
           created_at?: string
+          email?: string | null
           first_name?: string | null
           id?: string
           last_name?: string | null
+          status?: Database["public"]["Enums"]["profile_status"] | null
           updated_at?: string
           user_type?: Database["public"]["Enums"]["user_type"]
         }
@@ -305,6 +311,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      profile_status: "pending" | "approved" | "rejected"
       user_type: "admin" | "farmer" | "customer" | "delivery"
     }
     CompositeTypes: {
