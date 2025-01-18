@@ -30,21 +30,20 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
 
     try {
       if (isSignUp) {
-        if (userType === 'farmer') {
-          // For farmers, set initial status as 'pending'
-          const { error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                user_type: userType,
-                status: 'pending'
-              }
+        // For all user types, including farmers
+        const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              user_type: userType, // This will be properly cast to the enum type by the trigger
             }
-          });
+          }
+        });
 
-          if (signUpError) throw signUpError;
+        if (signUpError) throw signUpError;
 
+        if (userType === 'farmer') {
           toast({
             title: "Registration Submitted",
             description: "Your registration is pending admin approval. You will be notified via email when approved.",
@@ -53,23 +52,11 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
           return;
         }
 
-        // Normal signup for other user types
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              user_type: userType,
-            }
-          }
-        });
-
-        if (signUpError) throw signUpError;
-
         toast({
           title: "Success!",
           description: "Please check your email to verify your account.",
         });
+        
       } else {
         // Login logic
         const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
@@ -110,9 +97,10 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
         navigate(`/dashboard/${userType}`);
       }
     } catch (error) {
+      console.error('Auth error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An error occurred during authentication",
         variant: "destructive",
       });
       await supabase.auth.signOut();
