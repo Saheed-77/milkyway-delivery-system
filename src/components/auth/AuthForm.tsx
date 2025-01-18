@@ -24,6 +24,30 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
 
     try {
       if (isSignUp) {
+        if (userType === 'farmer') {
+          // For farmers, set initial status as 'pending'
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                user_type: userType,
+                status: 'pending'
+              }
+            }
+          });
+
+          if (signUpError) throw signUpError;
+
+          toast({
+            title: "Registration Submitted",
+            description: "Your registration is pending admin approval. You will be notified via email when approved.",
+          });
+          navigate('/');
+          return;
+        }
+
+        // Normal signup for other user types
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -41,7 +65,7 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
           description: "Please check your email to verify your account.",
         });
       } else {
-        // First, try to sign in
+        // Login logic
         const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -51,19 +75,23 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
 
         if (!user) throw new Error("No user data returned");
 
-        // After successful login, get the user's profile to determine their type
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("user_type")
+          .select("user_type, status")
           .eq("id", user.id)
           .single();
 
         if (profileError) throw profileError;
 
         if (profile?.user_type !== userType) {
-          // If wrong user type, sign out immediately
           await supabase.auth.signOut();
           throw new Error(`This account is registered as a ${profile?.user_type}. Please use the correct login page.`);
+        }
+
+        // For farmers, check if they're approved
+        if (userType === 'farmer' && profile?.status !== 'approved') {
+          await supabase.auth.signOut();
+          throw new Error("Your account is pending admin approval.");
         }
 
         toast({
@@ -79,7 +107,6 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
         description: error.message,
         variant: "destructive",
       });
-      // If there was an error, make sure user is signed out
       await supabase.auth.signOut();
     } finally {
       setIsLoading(false);
@@ -89,7 +116,7 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
   return (
     <div className="w-full max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold text-center mb-6 text-[#437358]">
-        {isSignUp ? `${userType} Sign Up` : `${userType} Login`}
+        {isSignUp ? (userType === 'farmer' ? 'Farmer Registration' : `${userType} Sign Up`) : `${userType} Login`}
       </h2>
       <form onSubmit={handleAuth} className="space-y-4">
         <div>
@@ -115,7 +142,7 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
           className="w-full bg-[#437358] hover:bg-[#345c46]"
           disabled={isLoading}
         >
-          {isLoading ? "Loading..." : isSignUp ? "Sign Up" : "Login"}
+          {isLoading ? "Loading..." : isSignUp ? (userType === 'farmer' ? "Submit Registration" : "Sign Up") : "Login"}
         </Button>
         <p className="text-center text-sm text-gray-600">
           {isSignUp ? "Already have an account?" : "Don't have an account?"}
@@ -124,7 +151,7 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
             onClick={() => setIsSignUp(!isSignUp)}
             className="ml-1 text-[#437358] hover:underline"
           >
-            {isSignUp ? "Login" : "Sign Up"}
+            {isSignUp ? "Login" : (userType === 'farmer' ? "Register" : "Sign Up")}
           </button>
         </p>
       </form>
