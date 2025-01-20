@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -5,6 +6,13 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Check, X, Users, Milk, Calendar, MessageSquare, Truck, ChartBar } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +31,9 @@ interface FarmerProfile {
   email: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
+  farm_name?: string;
+  farm_location?: string;
+  production_capacity?: number;
 }
 
 const AdminDashboard = () => {
@@ -59,7 +70,17 @@ const AdminDashboard = () => {
     console.log("Loading farmers...");
     const { data: farmers, error } = await supabase
       .from("profiles")
-      .select("id, email, status, created_at")
+      .select(`
+        id,
+        email,
+        status,
+        created_at,
+        farmers (
+          farm_name,
+          farm_location,
+          production_capacity
+        )
+      `)
       .eq("user_type", "farmer")
       .order("created_at", { ascending: false });
 
@@ -76,8 +97,16 @@ const AdminDashboard = () => {
     console.log("Fetched farmers:", farmers);
 
     if (farmers) {
-      const pending = farmers.filter(f => f.status === 'pending');
-      const approved = farmers.filter(f => f.status === 'approved');
+      // Transform the data to flatten the farmers object
+      const transformedFarmers = farmers.map(f => ({
+        ...f,
+        farm_name: f.farmers?.farm_name,
+        farm_location: f.farmers?.farm_location,
+        production_capacity: f.farmers?.production_capacity,
+      }));
+
+      const pending = transformedFarmers.filter(f => f.status === 'pending');
+      const approved = transformedFarmers.filter(f => f.status === 'approved');
       console.log("Pending farmers:", pending);
       console.log("Approved farmers:", approved);
       setPendingFarmers(pending);
@@ -113,89 +142,136 @@ const AdminDashboard = () => {
     switch (activeSection) {
       case "farmers":
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Pending Farmers */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold mb-4">Pending Farmer Registrations</h2>
-              {pendingFarmers.length === 0 ? (
-                <p className="text-gray-500">No pending registrations</p>
-              ) : (
-                <div className="space-y-4">
-                  {pendingFarmers.map((farmer) => (
-                    <div key={farmer.id} className="border p-4 rounded-lg">
-                      <p className="font-medium">{farmer.email}</p>
-                      <p className="text-sm text-gray-500">
-                        Registered: {new Date(farmer.created_at).toLocaleDateString()}
-                      </p>
-                      <div className="mt-2 flex gap-2">
-                        <Button
-                          size="sm"
-                          className="bg-green-500 hover:bg-green-600"
-                          onClick={() => handleFarmerStatus(farmer.id, 'approved')}
-                        >
-                          <Check className="w-4 h-4 mr-1" /> Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleFarmerStatus(farmer.id, 'rejected')}
-                        >
-                          <X className="w-4 h-4 mr-1" /> Reject
-                        </Button>
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending Farmer Registrations</CardTitle>
+                <CardDescription>Review and approve new farmer applications</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {pendingFarmers.length === 0 ? (
+                  <p className="text-gray-500">No pending registrations</p>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingFarmers.map((farmer) => (
+                      <div key={farmer.id} className="border p-4 rounded-lg">
+                        <p className="font-medium">{farmer.email}</p>
+                        {farmer.farm_name && (
+                          <p className="text-sm text-gray-600">Farm: {farmer.farm_name}</p>
+                        )}
+                        {farmer.farm_location && (
+                          <p className="text-sm text-gray-600">Location: {farmer.farm_location}</p>
+                        )}
+                        <p className="text-sm text-gray-500">
+                          Registered: {new Date(farmer.created_at).toLocaleDateString()}
+                        </p>
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-green-500 hover:bg-green-600"
+                            onClick={() => handleFarmerStatus(farmer.id, 'approved')}
+                          >
+                            <Check className="w-4 h-4 mr-1" /> Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleFarmerStatus(farmer.id, 'rejected')}
+                          >
+                            <X className="w-4 h-4 mr-1" /> Reject
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Approved Farmers */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold mb-4">Approved Farmers</h2>
-              {approvedFarmers.length === 0 ? (
-                <p className="text-gray-500">No approved farmers</p>
-              ) : (
-                <div className="space-y-4">
-                  {approvedFarmers.map((farmer) => (
-                    <div key={farmer.id} className="border p-4 rounded-lg">
-                      <p className="font-medium">{farmer.email}</p>
-                      <p className="text-sm text-gray-500">
-                        Approved: {new Date(farmer.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Approved Farmers</CardTitle>
+                <CardDescription>View all approved farmer profiles</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {approvedFarmers.length === 0 ? (
+                  <p className="text-gray-500">No approved farmers</p>
+                ) : (
+                  <div className="space-y-4">
+                    {approvedFarmers.map((farmer) => (
+                      <div key={farmer.id} className="border p-4 rounded-lg">
+                        <p className="font-medium">{farmer.email}</p>
+                        {farmer.farm_name && (
+                          <p className="text-sm text-gray-600">Farm: {farmer.farm_name}</p>
+                        )}
+                        {farmer.farm_location && (
+                          <p className="text-sm text-gray-600">Location: {farmer.farm_location}</p>
+                        )}
+                        {farmer.production_capacity && (
+                          <p className="text-sm text-gray-600">
+                            Capacity: {farmer.production_capacity} liters/day
+                          </p>
+                        )}
+                        <p className="text-sm text-gray-500">
+                          Approved: {new Date(farmer.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         );
       case "collections":
         return (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Milk Collections & Distribution</h2>
-            <p className="text-gray-500">Coming soon: Monitor milk collections and schedules</p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Milk Collections & Distribution</CardTitle>
+              <CardDescription>Monitor milk collections and schedules</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-500">Coming soon: Monitor milk collections and schedules</p>
+            </CardContent>
+          </Card>
         );
       case "orders":
         return (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Customer Orders & Feedback</h2>
-            <p className="text-gray-500">Coming soon: Handle customer orders and feedback</p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Customer Orders & Feedback</CardTitle>
+              <CardDescription>Handle customer orders and feedback</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-500">Coming soon: Handle customer orders and feedback</p>
+            </CardContent>
+          </Card>
         );
       case "delivery":
         return (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Delivery Management</h2>
-            <p className="text-gray-500">Coming soon: Track delivery personnel and assignments</p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Delivery Management</CardTitle>
+              <CardDescription>Track delivery personnel and assignments</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-500">Coming soon: Track delivery personnel and assignments</p>
+            </CardContent>
+          </Card>
         );
       case "reports":
         return (
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Reports & Analytics</h2>
-            <p className="text-gray-500">Coming soon: Generate reports on sales and deliveries</p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Reports & Analytics</CardTitle>
+              <CardDescription>Generate reports on sales and deliveries</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-500">Coming soon: Generate reports on sales and deliveries</p>
+            </CardContent>
+          </Card>
         );
       default:
         return null;

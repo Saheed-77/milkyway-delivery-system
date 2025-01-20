@@ -36,6 +36,47 @@ export type Database = {
         }
         Relationships: []
       }
+      farmers: {
+        Row: {
+          certification_details: string | null
+          created_at: string
+          farm_location: string | null
+          farm_name: string | null
+          farm_size: number | null
+          id: string
+          production_capacity: number | null
+          updated_at: string
+        }
+        Insert: {
+          certification_details?: string | null
+          created_at?: string
+          farm_location?: string | null
+          farm_name?: string | null
+          farm_size?: number | null
+          id: string
+          production_capacity?: number | null
+          updated_at?: string
+        }
+        Update: {
+          certification_details?: string | null
+          created_at?: string
+          farm_location?: string | null
+          farm_name?: string | null
+          farm_size?: number | null
+          id?: string
+          production_capacity?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farmers_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       milk_contributions: {
         Row: {
           contribution_date: string
