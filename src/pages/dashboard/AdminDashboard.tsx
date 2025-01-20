@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,12 +56,15 @@ const AdminDashboard = () => {
   }, [navigate]);
 
   const loadFarmers = async () => {
+    console.log("Loading farmers...");
     const { data: farmers, error } = await supabase
       .from("profiles")
       .select("id, email, status, created_at")
-      .eq("user_type", "farmer");
+      .eq("user_type", "farmer")
+      .order("created_at", { ascending: false });
 
     if (error) {
+      console.error("Error loading farmers:", error);
       toast({
         title: "Error",
         description: "Failed to load farmers",
@@ -71,9 +73,15 @@ const AdminDashboard = () => {
       return;
     }
 
+    console.log("Fetched farmers:", farmers);
+
     if (farmers) {
-      setPendingFarmers(farmers.filter(f => f.status === 'pending'));
-      setApprovedFarmers(farmers.filter(f => f.status === 'approved'));
+      const pending = farmers.filter(f => f.status === 'pending');
+      const approved = farmers.filter(f => f.status === 'approved');
+      console.log("Pending farmers:", pending);
+      console.log("Approved farmers:", approved);
+      setPendingFarmers(pending);
+      setApprovedFarmers(approved);
     }
   };
 
