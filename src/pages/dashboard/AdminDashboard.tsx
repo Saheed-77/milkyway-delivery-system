@@ -50,21 +50,20 @@ const AdminDashboard = () => {
 
   const loadFarmers = async () => {
     console.log("Loading farmers...");
-    const { data: farmers, error } = await supabase
+    const { data: farmersData, error } = await supabase
       .from("profiles")
       .select(`
         id,
         email,
         status,
         created_at,
-        farmers (
+        farmers!inner (
           farm_name,
           farm_location,
           production_capacity
         )
       `)
-      .eq("user_type", "farmer")
-      .order("created_at", { ascending: false });
+      .eq("user_type", "farmer");
 
     if (error) {
       console.error("Error loading farmers:", error);
@@ -76,9 +75,12 @@ const AdminDashboard = () => {
       return;
     }
 
-    if (farmers) {
-      const transformedFarmers = farmers.map(f => ({
-        ...f,
+    if (farmersData) {
+      const transformedFarmers: FarmerProfile[] = farmersData.map(f => ({
+        id: f.id,
+        email: f.email || '',
+        status: f.status || 'pending',
+        created_at: f.created_at,
         farm_name: f.farmers?.farm_name,
         farm_location: f.farmers?.farm_location,
         production_capacity: f.farmers?.production_capacity,
