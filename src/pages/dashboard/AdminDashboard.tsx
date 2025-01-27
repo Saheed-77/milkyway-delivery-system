@@ -27,7 +27,7 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const [pendingFarmers, setPendingFarmers] = useState<FarmerProfile[]>([]);
   const [approvedFarmers, setApprovedFarmers] = useState<FarmerProfile[]>([]);
-  const [activeSection, setActiveSection] = useState("farmers");
+  const [activeSection, setActiveSection] = useState("dashboard"); // Default to dashboard instead of farmers
   const [totalMilkStock, setTotalMilkStock] = useState<number>(0);
 
   useEffect(() => {

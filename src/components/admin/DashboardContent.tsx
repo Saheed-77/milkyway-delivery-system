@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { FarmersList } from "./FarmersList";
-import { Milk } from "lucide-react";
+import { Milk, ChartBar, ShoppingBag } from "lucide-react";
 
 interface FarmerProfile {
   id: string;
@@ -37,6 +37,55 @@ export const DashboardContent = ({
   onReject,
 }: DashboardContentProps) => {
   switch (activeSection) {
+    case "dashboard":
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="lg:col-span-2">
+            <Card className="bg-white shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-2xl font-bold">Daily Overview</CardTitle>
+                <ChartBar className="w-8 h-8 text-[#437358]" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">Today's performance metrics</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between py-2">
+                      <CardTitle className="text-lg font-medium">Milk Stock</CardTitle>
+                      <Milk className="w-5 h-5 text-[#437358]" />
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-3xl font-bold">{totalMilkStock} liters</p>
+                      <p className="text-xs text-muted-foreground">Current available stock</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between py-2">
+                      <CardTitle className="text-lg font-medium">Daily Sales</CardTitle>
+                      <ShoppingBag className="w-5 h-5 text-[#437358]" />
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-3xl font-bold">0</p>
+                      <p className="text-xs text-muted-foreground">No sales data available yet</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Latest updates from farmers and customers</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-500">No recent activity to display</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
     case "farmers":
       return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -1,5 +1,5 @@
 
-import { Users, Milk, MessageSquare, Truck, ChartBar } from "lucide-react";
+import { ChartBar, Users, Milk, MessageSquare, Truck } from "lucide-react";
 import {
   SidebarContent,
   SidebarGroup,
@@ -22,11 +22,11 @@ interface AdminSidebarProps {
 }
 
 const menuItems: MenuItem[] = [
+  { id: "dashboard", title: "Dashboard", icon: ChartBar },
   { id: "farmers", title: "Farmer Management", icon: Users },
   { id: "collections", title: "Milk Collections", icon: Milk },
   { id: "orders", title: "Customer Orders", icon: MessageSquare },
   { id: "delivery", title: "Delivery Management", icon: Truck },
-  { id: "reports", title: "Reports & Analytics", icon: ChartBar },
 ];
 
 export const AdminSidebar = ({ activeSection, onSectionChange }: AdminSidebarProps) => {
