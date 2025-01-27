@@ -57,13 +57,14 @@ const AdminDashboard = () => {
         email,
         status,
         created_at,
-        farmers!inner (
+        farmers (
           farm_name,
           farm_location,
           production_capacity
         )
       `)
-      .eq("user_type", "farmer");
+      .eq("user_type", "farmer")
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error("Error loading farmers:", error);
@@ -81,9 +82,9 @@ const AdminDashboard = () => {
         email: f.email || '',
         status: f.status || 'pending',
         created_at: f.created_at,
-        farm_name: f.farmers?.farm_name,
-        farm_location: f.farmers?.farm_location,
-        production_capacity: f.farmers?.production_capacity,
+        farm_name: f.farmers?.[0]?.farm_name,
+        farm_location: f.farmers?.[0]?.farm_location,
+        production_capacity: f.farmers?.[0]?.production_capacity,
       }));
 
       setPendingFarmers(transformedFarmers.filter(f => f.status === 'pending'));
