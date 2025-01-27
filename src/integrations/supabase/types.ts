@@ -346,7 +346,12 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      milk_stock: {
+        Row: {
+          total_stock: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

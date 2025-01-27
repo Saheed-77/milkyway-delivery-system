@@ -18,12 +18,17 @@ interface FarmerProfile {
   production_capacity?: number;
 }
 
+interface MilkStock {
+  total_stock: number;
+}
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [pendingFarmers, setPendingFarmers] = useState<FarmerProfile[]>([]);
   const [approvedFarmers, setApprovedFarmers] = useState<FarmerProfile[]>([]);
   const [activeSection, setActiveSection] = useState("farmers");
+  const [totalMilkStock, setTotalMilkStock] = useState<number>(0);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -46,7 +51,29 @@ const AdminDashboard = () => {
 
     checkAuth();
     loadFarmers();
+    loadMilkStock();
   }, [navigate]);
+
+  const loadMilkStock = async () => {
+    const { data, error } = await supabase
+      .from('milk_stock')
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error("Error loading milk stock:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load milk stock",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (data) {
+      setTotalMilkStock(data.total_stock);
+    }
+  };
 
   const loadFarmers = async () => {
     console.log("Loading farmers...");
@@ -138,6 +165,7 @@ const AdminDashboard = () => {
             activeSection={activeSection}
             pendingFarmers={pendingFarmers}
             approvedFarmers={approvedFarmers}
+            totalMilkStock={totalMilkStock}
             onApprove={(id) => handleFarmerStatus(id, 'approved')}
             onReject={(id) => handleFarmerStatus(id, 'rejected')}
           />
