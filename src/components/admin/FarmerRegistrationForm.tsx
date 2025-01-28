@@ -12,6 +12,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+// Generate a random 5-digit farmer ID
+const generateFarmerId = () => {
+  return Math.floor(10000 + Math.random() * 90000).toString();
+};
+
 export const FarmerRegistrationForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,6 +24,7 @@ export const FarmerRegistrationForm = () => {
   const [farmLocation, setFarmLocation] = useState("");
   const [productionCapacity, setProductionCapacity] = useState<number | "">("");
   const [isLoading, setIsLoading] = useState(false);
+  const [farmerId, setFarmerId] = useState(generateFarmerId());
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +39,7 @@ export const FarmerRegistrationForm = () => {
         options: {
           data: {
             user_type: "farmer", // This will be properly cast to the enum type by the trigger
+            farmer_id: farmerId  // Store the farmer ID in the user metadata
           }
         }
       });
@@ -47,6 +54,7 @@ export const FarmerRegistrationForm = () => {
           farm_name: farmName,
           farm_location: farmLocation,
           production_capacity: productionCapacity === "" ? null : Number(productionCapacity),
+          farmer_id: farmerId // Also store the farmer ID in the farmers table
         })
         .eq("id", user.id);
 
@@ -62,15 +70,16 @@ export const FarmerRegistrationForm = () => {
 
       toast({
         title: "Success!",
-        description: `Farmer ${email} has been registered and approved.`,
+        description: `Farmer ${email} has been registered with ID ${farmerId} and approved.`,
       });
 
-      // Reset form
+      // Reset form and generate a new farmer ID for the next registration
       setEmail("");
       setPassword("");
       setFarmName("");
       setFarmLocation("");
       setProductionCapacity("");
+      setFarmerId(generateFarmerId());
       
     } catch (error) {
       console.error("Error registering farmer:", error);
@@ -92,6 +101,21 @@ export const FarmerRegistrationForm = () => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="farmerId" className="block text-sm font-medium text-gray-700 mb-1">
+              Farmer ID
+            </label>
+            <Input
+              id="farmerId"
+              type="text"
+              value={farmerId}
+              readOnly
+              className="bg-gray-100"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Auto-generated 5-digit ID
+            </p>
+          </div>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email
