@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -7,7 +8,8 @@ import {
 } from "@/components/ui/card";
 import { FarmersList } from "./FarmersList";
 import { FarmerRegistrationForm } from "./FarmerRegistrationForm";
-import { Milk, ChartBar, ShoppingBag } from "lucide-react";
+import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface FarmerProfile {
   id: string;
@@ -85,34 +87,49 @@ export const DashboardContent = ({
       );
     case "farmers":
       return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Farmers Registration Form */}
-          <div className="lg:col-span-1">
-            <FarmerRegistrationForm />
-          </div>
+        <Tabs defaultValue="approval" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="approval" className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4" />
+              Approval Section
+            </TabsTrigger>
+            <TabsTrigger value="registration" className="flex items-center gap-2">
+              <UserPlus className="w-4 h-4" />
+              New Registrations
+            </TabsTrigger>
+          </TabsList>
           
-          {/* Pending Farmers */}
-          <div className="lg:col-span-1">
-            <FarmersList
-              title="Pending Registrations"
-              description="Farmers awaiting approval"
-              farmers={pendingFarmers}
-              showActions={true}
-              onApprove={onApprove}
-              onReject={onReject}
-            />
-          </div>
+          <TabsContent value="approval" className="space-y-6">
+            {/* Pending Farmers */}
+            <div>
+              <FarmersList
+                title="Pending Registrations"
+                description="Farmers awaiting approval"
+                farmers={pendingFarmers}
+                showActions={true}
+                onApprove={onApprove}
+                onReject={onReject}
+              />
+            </div>
+            
+            {/* Approved Farmers */}
+            <div>
+              <FarmersList
+                title="Approved Farmers"
+                description="Active farmers in the system"
+                farmers={approvedFarmers}
+                showActions={false}
+              />
+            </div>
+          </TabsContent>
           
-          {/* Approved Farmers */}
-          <div className="lg:col-span-2">
-            <FarmersList
-              title="Approved Farmers"
-              description="Active farmers in the system"
-              farmers={approvedFarmers}
-              showActions={false}
-            />
-          </div>
-        </div>
+          <TabsContent value="registration">
+            {/* Farmers Registration Form */}
+            <div>
+              <FarmerRegistrationForm />
+            </div>
+          </TabsContent>
+        </Tabs>
       );
     case "collections":
       return (
