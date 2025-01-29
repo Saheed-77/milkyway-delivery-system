@@ -47,18 +47,18 @@ export const FarmerRegistrationForm = () => {
       if (signUpError) throw signUpError;
       if (!user) throw new Error("Failed to create user account");
 
-      // Step 2: Update the farmer's profile with additional details
-      const { error: updateError } = await supabase
+      // Step 2: Insert a new record into the farmers table
+      const { error: insertError } = await supabase
         .from("farmers")
-        .update({
+        .insert({
+          id: user.id, 
           farm_name: farmName,
           farm_location: farmLocation,
           production_capacity: productionCapacity === "" ? null : Number(productionCapacity),
-          farmer_id: farmerId // Also store the farmer ID in the farmers table
-        })
-        .eq("id", user.id);
+          farmer_id: farmerId
+        });
 
-      if (updateError) throw updateError;
+      if (insertError) throw insertError;
 
       // Step 3: Admin can immediately approve the farmer
       const { error: approvalError } = await supabase
