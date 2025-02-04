@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Package, Clock, Check, X, Search, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -79,7 +79,7 @@ export const OrdersList = () => {
   };
 
   // Initial fetch on component mount
-  useState(() => {
+  useEffect(() => {
     fetchOrders();
   }, []);
 
