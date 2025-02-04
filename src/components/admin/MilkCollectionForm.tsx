@@ -31,56 +31,18 @@ export const MilkCollectionForm = () => {
     setIsLoading(true);
 
     try {
-      // First check if the provided ID is a UUID
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const isUuid = uuidRegex.test(farmerId);
-      
-      let farmerUuid;
-      
-      if (isUuid) {
-        // If it's a UUID, check if it exists in the profiles table
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", farmerId)
-          .eq("user_type", "farmer")
-          .single();
-          
-        if (profileError || !profile) {
-          throw new Error("Invalid Farmer ID: No farmer found with this UUID");
-        }
+      // First try to find the farmer using the farmer_id directly
+      const { data: farmerData, error: farmerError } = await supabase
+        .from("farmers")
+        .select("id")
+        .eq("farmer_id", farmerId)
+        .single();
         
-        farmerUuid = profile.id;
-      } else {
-        // If it's not a UUID, check if it exists as farmer_id in the farmers table
-        const { data: profiles, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, email")
-          .eq("user_type", "farmer");
-          
-        if (profilesError) throw profilesError;
-        
-        // Get user_metadata for each profile to check for farmer_id
-        let found = false;
-        
-        for (const profile of profiles || []) {
-          // Check if this is a UUID in the farmers table
-          const { data: farmerData } = await supabase
-            .from("farmers")
-            .select("id")
-            .eq("id", profile.id);
-            
-          if (farmerData && farmerData.length > 0) {
-            farmerUuid = profile.id;
-            found = true;
-            break;
-          }
-        }
-        
-        if (!found) {
-          throw new Error("Invalid Farmer ID: No farmer found with this ID");
-        }
+      if (farmerError || !farmerData) {
+        throw new Error("Invalid Farmer ID: No farmer found with this ID");
       }
+      
+      const farmerUuid = farmerData.id;
 
       // Add milk contribution
       const { error: contributionError } = await supabase
@@ -132,11 +94,11 @@ export const MilkCollectionForm = () => {
               type="text"
               value={farmerId}
               onChange={(e) => setFarmerId(e.target.value)}
-              placeholder="Enter Farmer UUID"
+              placeholder="Enter Farmer ID"
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Enter the farmer's UUID from the approved farmers list
+              Enter the 5-digit Farmer ID (not UUID)
             </p>
           </div>
           <div>
