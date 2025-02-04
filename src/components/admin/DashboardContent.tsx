@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -8,6 +9,7 @@ import {
 import { FarmersList } from "./FarmersList";
 import { FarmerRegistrationForm } from "./FarmerRegistrationForm";
 import { MilkCollectionForm } from "./MilkCollectionForm";
+import { OrdersList } from "./OrdersList";
 import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -147,17 +149,7 @@ export const DashboardContent = ({
         </div>
       );
     case "orders":
-      return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Customer Orders</CardTitle>
-            <CardDescription>Manage orders from customers</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Coming soon...</p>
-          </CardContent>
-        </Card>
-      );
+      return <OrdersList />;
     case "delivery":
       return (
         <Card>
