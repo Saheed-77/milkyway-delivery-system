@@ -48,6 +48,7 @@ export const FarmerRegistrationForm = () => {
       if (!user) throw new Error("Failed to create user account");
 
       // Step 2: Insert a new record into the farmers table
+      // Convert farmerId from string to number before inserting
       const { error: insertError } = await supabase
         .from("farmers")
         .insert({
@@ -55,7 +56,7 @@ export const FarmerRegistrationForm = () => {
           farm_name: farmName,
           farm_location: farmLocation,
           production_capacity: productionCapacity === "" ? null : Number(productionCapacity),
-          farmer_id: farmerId
+          farmer_id: Number(farmerId) // Convert string to number
         });
 
       if (insertError) throw insertError;
