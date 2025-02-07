@@ -31,14 +31,19 @@ export const MilkCollectionForm = () => {
     setIsLoading(true);
 
     try {
-      // First try to find the farmer using the farmer_id directly
+      // Find the farmer using the farmer_id field directly
       const { data: farmerData, error: farmerError } = await supabase
         .from("farmers")
         .select("id")
         .eq("farmer_id", farmerId)
-        .single();
+        .maybeSingle();
         
-      if (farmerError || !farmerData) {
+      if (farmerError) {
+        console.error("Database error:", farmerError);
+        throw new Error("Failed to check farmer ID");
+      }
+      
+      if (!farmerData) {
         throw new Error("Invalid Farmer ID: No farmer found with this ID");
       }
       
