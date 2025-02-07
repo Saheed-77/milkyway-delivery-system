@@ -43,7 +43,7 @@ export type Database = {
           farm_location: string | null
           farm_name: string | null
           farm_size: number | null
-          farmer_id: string | null
+          farmer_id: number | null
           id: string
           production_capacity: number | null
           updated_at: string
@@ -54,7 +54,7 @@ export type Database = {
           farm_location?: string | null
           farm_name?: string | null
           farm_size?: number | null
-          farmer_id?: string | null
+          farmer_id?: number | null
           id: string
           production_capacity?: number | null
           updated_at?: string
@@ -65,7 +65,7 @@ export type Database = {
           farm_location?: string | null
           farm_name?: string | null
           farm_size?: number | null
-          farmer_id?: string | null
+          farmer_id?: number | null
           id?: string
           production_capacity?: number | null
           updated_at?: string

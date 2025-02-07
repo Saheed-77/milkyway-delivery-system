@@ -31,12 +31,15 @@ export const MilkCollectionForm = () => {
     setIsLoading(true);
 
     try {
-      // Find the farmer using the farmer_id field directly
+      console.log("Checking for farmer ID:", farmerId);
+      // Find the farmer using the farmer_id field directly, converting the string to a number
       const { data: farmerData, error: farmerError } = await supabase
         .from("farmers")
-        .select("id")
-        .eq("farmer_id", farmerId)
+        .select("id, farmer_id")
+        .eq("farmer_id", Number(farmerId))
         .maybeSingle();
+        
+      console.log("Farmer search result:", farmerData, farmerError);
         
       if (farmerError) {
         console.error("Database error:", farmerError);
