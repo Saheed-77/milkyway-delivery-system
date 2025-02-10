@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export const QuickOrderForm = () => {
   const { toast } = useToast();
 
   // Fetch products on component mount
-  useState(() => {
+  useEffect(() => {
     const fetchProducts = async () => {
       try {
         const { data, error } = await supabase
