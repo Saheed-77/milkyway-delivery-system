@@ -59,16 +59,26 @@ export const MilkCollectionForm = () => {
       
       const farmerUuid = farmerData.id;
 
+      // Log the data before inserting to debug
+      const contributionData = {
+        farmer_id: farmerUuid,
+        quantity: Number(quantity),
+        // Only use specific values that match the database constraints
+        // The quality_rating field likely has a check constraint for specific values
+        quality_rating: Number(qualityRating)
+      };
+      
+      console.log("Attempting to insert contribution data:", contributionData);
+
       // Add milk contribution
       const { error: contributionError } = await supabase
         .from("milk_contributions")
-        .insert({
-          farmer_id: farmerUuid,
-          quantity: Number(quantity),
-          quality_rating: qualityRating === "" ? null : Number(qualityRating)
-        });
+        .insert(contributionData);
 
-      if (contributionError) throw contributionError;
+      if (contributionError) {
+        console.error("Contribution error:", contributionError);
+        throw contributionError;
+      }
 
       toast({
         title: "Success!",
@@ -140,10 +150,10 @@ export const MilkCollectionForm = () => {
                 <SelectValue placeholder="Select quality rating" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="90">A (Excellent)</SelectItem>
-                <SelectItem value="80">B (Good)</SelectItem>
-                <SelectItem value="70">C (Average)</SelectItem>
-                <SelectItem value="50">D (Below Standard)</SelectItem>
+                <SelectItem value="1">A (Excellent)</SelectItem>
+                <SelectItem value="2">B (Good)</SelectItem>
+                <SelectItem value="3">C (Average)</SelectItem>
+                <SelectItem value="4">D (Below Standard)</SelectItem>
               </SelectContent>
             </Select>
           </div>
