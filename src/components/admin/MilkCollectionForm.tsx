@@ -32,11 +32,12 @@ export const MilkCollectionForm = () => {
 
     try {
       console.log("Checking for farmer ID:", farmerId);
-      // Find the farmer using the farmer_id field directly, converting the string to a number
+      
+      // Try both ways - as string and as number
       const { data: farmerData, error: farmerError } = await supabase
         .from("farmers")
         .select("id, farmer_id")
-        .eq("farmer_id", Number(farmerId))
+        .or(`farmer_id.eq.${farmerId},farmer_id.eq.${Number(farmerId)}`)
         .maybeSingle();
         
       console.log("Farmer search result:", farmerData, farmerError);
@@ -47,6 +48,12 @@ export const MilkCollectionForm = () => {
       }
       
       if (!farmerData) {
+        // Get all farmers for debugging
+        const { data: allFarmers } = await supabase
+          .from("farmers")
+          .select("id, farmer_id");
+        
+        console.log("All farmers in the database:", allFarmers);
         throw new Error("Invalid Farmer ID: No farmer found with this ID");
       }
       
