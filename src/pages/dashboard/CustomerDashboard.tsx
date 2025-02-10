@@ -3,6 +3,9 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { QuickOrderForm } from "@/components/customer/QuickOrderForm";
+import { SubscriptionsList } from "@/components/customer/SubscriptionsList";
+import { WalletBalance } from "@/components/customer/WalletBalance";
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
@@ -30,23 +33,24 @@ const CustomerDashboard = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-[#f8f7f3] p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-[#437358]">Customer Dashboard</h1>
+    <div className="min-h-screen bg-[#f8f7f3] p-4 md:p-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-3">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-[#437358]">Customer Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Manage your orders, subscriptions and wallet</p>
+        </div>
         <LogoutButton />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Quick Order</h2>
-          {/* Add quick order form here */}
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="md:col-span-1">
+          <QuickOrderForm />
         </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">My Subscriptions</h2>
-          {/* Add subscription management here */}
+        <div className="md:col-span-1">
+          <SubscriptionsList />
         </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Wallet Balance</h2>
-          {/* Add wallet information here */}
+        <div className="md:col-span-1">
+          <WalletBalance />
         </div>
       </div>
     </div>
