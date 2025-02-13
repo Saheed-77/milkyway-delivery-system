@@ -38,7 +38,10 @@ export const QuickOrderForm = () => {
         .order("price")
         .limit(1);
       
-      if (productsError) throw productsError;
+      if (productsError) {
+        console.error("Products error:", productsError);
+        throw productsError;
+      }
       
       if (!products || products.length === 0) {
         toast({
@@ -65,7 +68,10 @@ export const QuickOrderForm = () => {
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error("Order error:", orderError);
+        throw orderError;
+      }
 
       // Create order item
       const { error: itemError } = await supabase
@@ -77,7 +83,10 @@ export const QuickOrderForm = () => {
           unit_price: selectedProduct.price
         });
 
-      if (itemError) throw itemError;
+      if (itemError) {
+        console.error("Order item error:", itemError);
+        throw itemError;
+      }
 
       toast({
         title: "Order Placed!",
