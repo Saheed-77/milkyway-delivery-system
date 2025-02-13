@@ -26,6 +26,7 @@ export const QuickOrderForm = () => {
           description: "You must be logged in to place an order",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
@@ -45,6 +46,7 @@ export const QuickOrderForm = () => {
           description: `No ${milkType} milk products available`,
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
