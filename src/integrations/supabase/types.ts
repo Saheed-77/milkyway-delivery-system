@@ -86,6 +86,7 @@ export type Database = {
           created_at: string
           farmer_id: string
           id: string
+          milk_type: string
           quality_rating: number | null
           quantity: number
         }
@@ -94,6 +95,7 @@ export type Database = {
           created_at?: string
           farmer_id: string
           id?: string
+          milk_type?: string
           quality_rating?: number | null
           quantity: number
         }
@@ -102,6 +104,7 @@ export type Database = {
           created_at?: string
           farmer_id?: string
           id?: string
+          milk_type?: string
           quality_rating?: number | null
           quantity?: number
         }
@@ -203,6 +206,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          milk_type: string
           name: string
           price: number
           stock_quantity: number
@@ -212,6 +216,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          milk_type?: string
           name: string
           price: number
           stock_quantity?: number
@@ -221,6 +226,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          milk_type?: string
           name?: string
           price?: number
           stock_quantity?: number

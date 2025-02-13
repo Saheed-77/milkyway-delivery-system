@@ -23,6 +23,7 @@ export const MilkCollectionForm = () => {
   const [farmerId, setFarmerId] = useState("");
   const [quantity, setQuantity] = useState<number | "">("");
   const [qualityRating, setQualityRating] = useState<number | "">("");
+  const [milkType, setMilkType] = useState("cow");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -65,7 +66,8 @@ export const MilkCollectionForm = () => {
         quantity: Number(quantity),
         // Only use specific values that match the database constraints
         // The quality_rating field likely has a check constraint for specific values
-        quality_rating: Number(qualityRating)
+        quality_rating: Number(qualityRating),
+        milk_type: milkType
       };
       
       console.log("Attempting to insert contribution data:", contributionData);
@@ -89,6 +91,7 @@ export const MilkCollectionForm = () => {
       setFarmerId("");
       setQuantity("");
       setQualityRating("");
+      setMilkType("cow");
       
     } catch (error) {
       console.error("Error recording milk collection:", error);
@@ -126,6 +129,26 @@ export const MilkCollectionForm = () => {
               Enter the 5-digit Farmer ID (not UUID)
             </p>
           </div>
+          
+          <div>
+            <label htmlFor="milkType" className="block text-sm font-medium text-gray-700 mb-1">
+              Milk Type
+            </label>
+            <Select 
+              value={milkType} 
+              onValueChange={setMilkType}
+            >
+              <SelectTrigger id="milkType">
+                <SelectValue placeholder="Select milk type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cow">Cow</SelectItem>
+                <SelectItem value="buffalo">Buffalo</SelectItem>
+                <SelectItem value="goat">Goat</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
           <div>
             <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
               Quantity (liters)

@@ -11,6 +11,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 export const QuickOrderForm = () => {
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [milkType, setMilkType] = useState("cow");
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
@@ -23,6 +24,7 @@ export const QuickOrderForm = () => {
         const { data, error } = await supabase
           .from("products")
           .select("*")
+          .eq("milk_type", milkType)
           .order("name");
 
         if (error) throw error;
@@ -40,7 +42,7 @@ export const QuickOrderForm = () => {
     };
 
     fetchProducts();
-  }, []);
+  }, [milkType]); // Re-fetch products when milk type changes
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -122,6 +124,23 @@ export const QuickOrderForm = () => {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <Label htmlFor="milkType">Milk Type</Label>
+            <Select 
+              value={milkType} 
+              onValueChange={setMilkType}
+            >
+              <SelectTrigger id="milkType">
+                <SelectValue placeholder="Select milk type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cow">Cow Milk</SelectItem>
+                <SelectItem value="buffalo">Buffalo Milk</SelectItem>
+                <SelectItem value="goat">Goat Milk</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
             <Label htmlFor="product">Product</Label>
             <Select 
               value={productId} 
@@ -134,12 +153,14 @@ export const QuickOrderForm = () => {
               <SelectContent>
                 {isLoadingProducts ? (
                   <SelectItem value="loading" disabled>Loading products...</SelectItem>
-                ) : (
+                ) : products.length > 0 ? (
                   products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.name} - ${product.price.toFixed(2)}
                     </SelectItem>
                   ))
+                ) : (
+                  <SelectItem value="none" disabled>No products available for this milk type</SelectItem>
                 )}
               </SelectContent>
             </Select>
