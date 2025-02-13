@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,40 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const QuickOrderForm = () => {
-  const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [milkType, setMilkType] = useState("cow");
-  const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const { toast } = useToast();
-
-  // Fetch products on component mount
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("milk_type", milkType)
-          .order("name");
-
-        if (error) throw error;
-        setProducts(data || []);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load products. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoadingProducts(false);
-      }
-    };
-
-    fetchProducts();
-  }, [milkType]); // Re-fetch products when milk type changes
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,16 +29,27 @@ export const QuickOrderForm = () => {
         return;
       }
 
-      const selectedProduct = products.find(p => p.id === productId);
-      if (!selectedProduct) {
+      // Fetch products of the selected milk type
+      const { data: products, error: productsError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("milk_type", milkType)
+        .order("price")
+        .limit(1);
+      
+      if (productsError) throw productsError;
+      
+      if (!products || products.length === 0) {
         toast({
           title: "Error",
-          description: "Please select a valid product",
+          description: `No ${milkType} milk products available`,
           variant: "destructive",
         });
         return;
       }
 
+      // Use the first product of the selected milk type
+      const selectedProduct = products[0];
       const totalAmount = selectedProduct.price * parseInt(quantity);
 
       // Create order
@@ -89,7 +70,7 @@ export const QuickOrderForm = () => {
         .from("order_items")
         .insert({
           order_id: orderData.id,
-          product_id: productId,
+          product_id: selectedProduct.id,
           quantity: parseInt(quantity),
           unit_price: selectedProduct.price
         });
@@ -98,11 +79,10 @@ export const QuickOrderForm = () => {
 
       toast({
         title: "Order Placed!",
-        description: "Your order has been successfully submitted.",
+        description: `Your order for ${quantity} unit(s) of ${milkType} milk has been submitted.`,
       });
 
       // Reset form
-      setProductId("");
       setQuantity("1");
     } catch (error) {
       console.error("Error placing order:", error);
@@ -141,32 +121,6 @@ export const QuickOrderForm = () => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="product">Product</Label>
-            <Select 
-              value={productId} 
-              onValueChange={setProductId}
-              disabled={isLoadingProducts}
-            >
-              <SelectTrigger id="product">
-                <SelectValue placeholder="Select a product" />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoadingProducts ? (
-                  <SelectItem value="loading" disabled>Loading products...</SelectItem>
-                ) : products.length > 0 ? (
-                  products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name} - ${product.price.toFixed(2)}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="none" disabled>No products available for this milk type</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
             <Label htmlFor="quantity">Quantity</Label>
             <Input
               id="quantity"
@@ -181,7 +135,7 @@ export const QuickOrderForm = () => {
             <Button 
               type="submit" 
               className="w-full bg-[#437358] hover:bg-[#345c46]"
-              disabled={isLoading || !productId}
+              disabled={isLoading}
             >
               {isLoading ? "Processing..." : "Place Order"}
             </Button>
