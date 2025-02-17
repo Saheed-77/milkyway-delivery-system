@@ -36,6 +36,47 @@ export type Database = {
         }
         Relationships: []
       }
+      farmer_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          farmer_id: string
+          id: string
+          notes: string | null
+          payment_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          farmer_id: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          farmer_id?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farmer_payments_farmer_id_fkey"
+            columns: ["farmer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       farmers: {
         Row: {
           certification_details: string | null
