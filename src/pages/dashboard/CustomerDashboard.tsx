@@ -6,6 +6,7 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { QuickOrderForm } from "@/components/customer/QuickOrderForm";
 import { SubscriptionsList } from "@/components/customer/SubscriptionsList";
 import { WalletBalance } from "@/components/customer/WalletBalance";
+import { OrdersList } from "@/components/customer/OrdersList";
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
@@ -47,11 +48,15 @@ const CustomerDashboard = () => {
           <QuickOrderForm />
         </div>
         <div className="md:col-span-1">
-          <SubscriptionsList />
-        </div>
-        <div className="md:col-span-1">
           <WalletBalance />
         </div>
+        <div className="md:col-span-1">
+          <SubscriptionsList />
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <OrdersList />
       </div>
     </div>
   );
