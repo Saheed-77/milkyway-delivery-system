@@ -12,6 +12,9 @@ import FarmerDashboard from "./pages/dashboard/FarmerDashboard";
 import CustomerDashboard from "./pages/dashboard/CustomerDashboard";
 import DeliveryDashboard from "./pages/dashboard/DeliveryDashboard";
 
+// Import the CheckCircle icon from lucide-react
+import { CheckCircle } from "lucide-react";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -27,6 +30,10 @@ const App = () => (
           <Route path="/dashboard/farmer" element={<FarmerDashboard />} />
           <Route path="/dashboard/customer" element={<CustomerDashboard />} />
           <Route path="/dashboard/delivery" element={<DeliveryDashboard />} />
+          <Route path="/dashboard/delivery/pending" element={<DeliveryDashboard />} />
+          <Route path="/dashboard/delivery/completed" element={<DeliveryDashboard />} />
+          <Route path="/dashboard/delivery/schedule" element={<DeliveryDashboard />} />
+          <Route path="/dashboard/delivery/settings" element={<DeliveryDashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

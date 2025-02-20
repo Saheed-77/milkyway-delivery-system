@@ -3,8 +3,10 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Truck } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { DeliverySidebar } from "@/components/delivery/DeliverySidebar";
+import { DeliverySummary } from "@/components/delivery/DeliverySummary";
+import { PendingDeliveries } from "@/components/delivery/PendingDeliveries";
 
 const DeliveryDashboard = () => {
   const navigate = useNavigate();
@@ -56,31 +58,29 @@ const DeliveryDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f7f3] p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-[#437358]">Delivery Dashboard</h1>
-          <Button
-            variant="outline"
-            onClick={handleSignOut}
-            className="text-[#437358]"
-          >
-            Sign Out
-          </Button>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <Truck className="w-16 h-16 text-[#437358] mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold mb-4">Welcome to your Delivery Dashboard</h2>
-          <p className="text-gray-600">
-            Your delivery management interface is coming soon. Here you'll be able to:
-          </p>
-          <ul className="mt-4 space-y-2 text-gray-600">
-            <li>• View assigned deliveries</li>
-            <li>• Update delivery status</li>
-            <li>• Access customer locations</li>
-            <li>• Track your delivery performance</li>
-          </ul>
-        </div>
+    <div className="flex h-screen bg-[#f8f7f3]">
+      <DeliverySidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="border-b border-border bg-white p-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-[#437358]">Delivery Dashboard</h1>
+            <Button
+              variant="outline"
+              onClick={handleSignOut}
+              className="text-[#437358]"
+            >
+              Sign Out
+            </Button>
+          </div>
+        </header>
+        
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <DeliverySummary />
+            <PendingDeliveries />
+          </div>
+        </main>
       </div>
     </div>
   );
