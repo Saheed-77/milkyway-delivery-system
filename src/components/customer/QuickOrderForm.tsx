@@ -19,18 +19,19 @@ export const QuickOrderForm = () => {
     setIsLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // 1. Get current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("Session error:", sessionError);
+        throw new Error("Authentication error: " + sessionError.message);
+      }
+      
       if (!session) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to place an order",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
+        throw new Error("You must be logged in to place an order");
       }
 
-      // Fetch products of the selected milk type
+      // 2. Fetch products of the selected milk type
       const { data: products, error: productsError } = await supabase
         .from("products")
         .select("*")
@@ -40,24 +41,18 @@ export const QuickOrderForm = () => {
       
       if (productsError) {
         console.error("Products error:", productsError);
-        throw productsError;
+        throw new Error("Error fetching products: " + productsError.message);
       }
       
       if (!products || products.length === 0) {
-        toast({
-          title: "Error",
-          description: `No ${milkType} milk products available`,
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
+        throw new Error(`No ${milkType} milk products available`);
       }
 
-      // Use the first product of the selected milk type
+      // 3. Use the first product of the selected milk type
       const selectedProduct = products[0];
       const totalAmount = selectedProduct.price * parseInt(quantity);
 
-      // Create order
+      // 4. Create order
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -70,11 +65,11 @@ export const QuickOrderForm = () => {
 
       if (orderError) {
         console.error("Order error:", orderError);
-        throw orderError;
+        throw new Error("Error creating order: " + orderError.message);
       }
 
-      // Create order item
-      const { error: itemError } = await supabase
+      // 5. Create order item
+      const { data: orderItemData, error: itemError } = await supabase
         .from("order_items")
         .insert({
           order_id: orderData.id,
@@ -85,7 +80,12 @@ export const QuickOrderForm = () => {
 
       if (itemError) {
         console.error("Order item error:", itemError);
-        throw itemError;
+        // Attempt to rollback the order
+        await supabase
+          .from("orders")
+          .delete()
+          .eq("id", orderData.id);
+        throw new Error("Error adding item to order: " + itemError.message);
       }
 
       toast({
@@ -95,6 +95,7 @@ export const QuickOrderForm = () => {
 
       // Reset form
       setQuantity("1");
+      
     } catch (error) {
       console.error("Error placing order:", error);
       toast({
