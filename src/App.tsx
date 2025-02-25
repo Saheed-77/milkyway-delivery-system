@@ -12,9 +12,6 @@ import FarmerDashboard from "./pages/dashboard/FarmerDashboard";
 import CustomerDashboard from "./pages/dashboard/CustomerDashboard";
 import DeliveryDashboard from "./pages/dashboard/DeliveryDashboard";
 
-// Import the CheckCircle icon from lucide-react
-import { CheckCircle } from "lucide-react";
-
 const queryClient = new QueryClient();
 
 const App = () => (

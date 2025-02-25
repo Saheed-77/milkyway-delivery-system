@@ -1,5 +1,5 @@
 
-import { Home, Package, Truck, MapPin, Calendar, Settings } from "lucide-react";
+import { Home, Package, Truck, Calendar, Settings, CheckCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Sidebar,
