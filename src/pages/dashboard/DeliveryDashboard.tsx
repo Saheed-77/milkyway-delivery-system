@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { DeliverySidebar } from "@/components/delivery/DeliverySidebar";
 import { DeliverySummary } from "@/components/delivery/DeliverySummary";
 import { PendingDeliveries } from "@/components/delivery/PendingDeliveries";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 const DeliveryDashboard = () => {
   const navigate = useNavigate();
@@ -59,29 +60,31 @@ const DeliveryDashboard = () => {
 
   return (
     <div className="flex h-screen bg-[#f8f7f3]">
-      <DeliverySidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="border-b border-border bg-white p-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-[#437358]">Delivery Dashboard</h1>
-            <Button
-              variant="outline"
-              onClick={handleSignOut}
-              className="text-[#437358]"
-            >
-              Sign Out
-            </Button>
-          </div>
-        </header>
+      <SidebarProvider>
+        <DeliverySidebar />
         
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-            <DeliverySummary />
-            <PendingDeliveries />
-          </div>
-        </main>
-      </div>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <header className="border-b border-border bg-white p-4">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold text-[#437358]">Delivery Dashboard</h1>
+              <Button
+                variant="outline"
+                onClick={handleSignOut}
+                className="text-[#437358]"
+              >
+                Sign Out
+              </Button>
+            </div>
+          </header>
+          
+          <main className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-7xl mx-auto space-y-6">
+              <DeliverySummary />
+              <PendingDeliveries />
+            </div>
+          </main>
+        </div>
+      </SidebarProvider>
     </div>
   );
 };
