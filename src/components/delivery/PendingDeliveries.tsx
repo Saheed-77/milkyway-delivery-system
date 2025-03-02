@@ -25,6 +25,7 @@ import { formatDistanceToNow } from "date-fns";
 export const PendingDeliveries = () => {
   const [pendingDeliveries, setPendingDeliveries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -87,6 +88,7 @@ export const PendingDeliveries = () => {
 
   const handleMarkAsDelivered = async (orderId) => {
     try {
+      setIsUpdating(true);
       const { error } = await supabase
         .from("orders")
         .update({ status: "delivered" })
@@ -96,10 +98,8 @@ export const PendingDeliveries = () => {
         throw error;
       }
 
-      // Update the local state
-      setPendingDeliveries(prevDeliveries => 
-        prevDeliveries.filter(delivery => delivery.id !== orderId)
-      );
+      // After successful update, refresh the data
+      await fetchPendingDeliveries();
 
       toast({
         title: "Success",
@@ -112,6 +112,8 @@ export const PendingDeliveries = () => {
         description: "Failed to update order status",
         variant: "destructive",
       });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -182,9 +184,10 @@ export const PendingDeliveries = () => {
                         size="sm"
                         className="flex items-center gap-1 text-green-600 border-green-600 hover:bg-green-50"
                         onClick={() => handleMarkAsDelivered(order.id)}
+                        disabled={isUpdating}
                       >
                         <CheckCircle className="h-4 w-4" />
-                        <span>Delivered</span>
+                        <span>{isUpdating ? "Updating..." : "Delivered"}</span>
                       </Button>
                     </TableCell>
                   </TableRow>
