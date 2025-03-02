@@ -89,12 +89,16 @@ export const PendingDeliveries = () => {
   const handleMarkAsDelivered = async (orderId) => {
     try {
       setIsUpdating(true);
+      
+      // Update the status to "completed" instead of "delivered"
+      // This is to comply with the database check constraint
       const { error } = await supabase
         .from("orders")
-        .update({ status: "delivered" })
+        .update({ status: "completed" })
         .eq("id", orderId);
 
       if (error) {
+        console.error("Error updating order status:", error);
         throw error;
       }
 

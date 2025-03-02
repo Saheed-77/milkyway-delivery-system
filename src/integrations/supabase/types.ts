@@ -407,6 +407,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      delivery_status: "pending" | "delivered" | "rejected"
       profile_status: "pending" | "approved" | "rejected"
       user_type: "admin" | "farmer" | "customer" | "delivery"
     }
