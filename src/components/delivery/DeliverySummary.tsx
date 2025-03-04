@@ -46,7 +46,7 @@ export const DeliverySummary = () => {
       const { count: todayCount, error: todayError } = await supabase
         .from("orders")
         .select("id", { count: "exact" })
-        .eq("status", "delivered")
+        .eq("status", "completed")
         .gte("updated_at", today.toISOString());
 
       if (todayError) throw todayError;
@@ -55,7 +55,7 @@ export const DeliverySummary = () => {
       const { count: totalCompletedCount, error: totalCompletedError } = await supabase
         .from("orders")
         .select("id", { count: "exact" })
-        .eq("status", "delivered");
+        .eq("status", "completed");
 
       if (totalCompletedError) throw totalCompletedError;
 

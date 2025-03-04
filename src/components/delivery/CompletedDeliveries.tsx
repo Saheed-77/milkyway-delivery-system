@@ -18,22 +18,19 @@ import {
   TableCell 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Package, Truck, MapPin, CheckCircle } from "lucide-react";
+import { CheckCircle, Package } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-export const PendingDeliveries = ({ onStatusChange }) => {
-  const [pendingDeliveries, setPendingDeliveries] = useState([]);
+export const CompletedDeliveries = () => {
+  const [completedDeliveries, setCompletedDeliveries] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [updatingOrderId, setUpdatingOrderId] = useState(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchPendingDeliveries();
+    fetchCompletedDeliveries();
   }, []);
 
-  const fetchPendingDeliveries = async () => {
+  const fetchCompletedDeliveries = async () => {
     try {
       setIsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -42,12 +39,13 @@ export const PendingDeliveries = ({ onStatusChange }) => {
         throw new Error("Not authenticated");
       }
 
-      // Fetch pending orders with their items and product details
+      // Fetch completed orders with their items and product details
       const { data, error } = await supabase
         .from("orders")
         .select(`
           id,
           created_at,
+          updated_at,
           total_amount,
           status,
           delivery_slot,
@@ -68,64 +66,23 @@ export const PendingDeliveries = ({ onStatusChange }) => {
             email
           )
         `)
-        .eq("status", "pending");
+        .eq("status", "completed")
+        .order('updated_at', { ascending: false });
 
       if (error) {
         throw error;
       }
 
-      setPendingDeliveries(data || []);
+      setCompletedDeliveries(data || []);
     } catch (error) {
-      console.error("Error fetching pending deliveries:", error);
+      console.error("Error fetching completed deliveries:", error);
       toast({
         title: "Error",
-        description: "Failed to load pending deliveries",
+        description: "Failed to load completed deliveries",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleMarkAsDelivered = async (orderId) => {
-    try {
-      setIsUpdating(true);
-      setUpdatingOrderId(orderId);
-      
-      // Update the status to "completed" instead of "delivered"
-      // This is to comply with the database check constraint
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: "completed" })
-        .eq("id", orderId);
-
-      if (error) {
-        console.error("Error updating order status:", error);
-        throw error;
-      }
-
-      // After successful update, refresh the data
-      await fetchPendingDeliveries();
-      
-      // Notify parent component about the status change to refresh dashboard
-      if (onStatusChange) {
-        onStatusChange();
-      }
-
-      toast({
-        title: "Success",
-        description: "Order marked as delivered",
-      });
-    } catch (error) {
-      console.error("Error updating order status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update order status",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUpdating(false);
-      setUpdatingOrderId(null);
     }
   };
 
@@ -142,18 +99,18 @@ export const PendingDeliveries = ({ onStatusChange }) => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Package className="h-5 w-5 text-[#437358]" />
-          Pending Deliveries
+          <CheckCircle className="h-5 w-5 text-green-600" />
+          Completed Deliveries
         </CardTitle>
-        <CardDescription>Orders waiting to be delivered</CardDescription>
+        <CardDescription>Orders that have been successfully delivered</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <p className="text-center py-8 text-muted-foreground">Loading deliveries...</p>
-        ) : pendingDeliveries.length === 0 ? (
+        ) : completedDeliveries.length === 0 ? (
           <div className="text-center py-8">
-            <Truck className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
-            <p className="mt-2 text-muted-foreground">No pending deliveries</p>
+            <Package className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
+            <p className="mt-2 text-muted-foreground">No completed deliveries</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -163,13 +120,13 @@ export const PendingDeliveries = ({ onStatusChange }) => {
                   <TableHead>Order ID</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Items</TableHead>
-                  <TableHead>Order Date</TableHead>
+                  <TableHead>Delivered On</TableHead>
                   <TableHead>Amount</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingDeliveries.map((order) => (
+                {completedDeliveries.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">
                       {order.id.substring(0, 8)}...
@@ -185,22 +142,15 @@ export const PendingDeliveries = ({ onStatusChange }) => {
                       ))}
                     </TableCell>
                     <TableCell>
-                      {formatDate(order.created_at)}
+                      {formatDate(order.updated_at)}
                     </TableCell>
                     <TableCell>
                       ₹{order.total_amount.toFixed(2)}
                     </TableCell>
                     <TableCell>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="flex items-center gap-1 text-green-600 border-green-600 hover:bg-green-50"
-                        onClick={() => handleMarkAsDelivered(order.id)}
-                        disabled={isUpdating}
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        <span>{isUpdating && updatingOrderId === order.id ? "Updating..." : "Delivered"}</span>
-                      </Button>
+                      <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
+                        Completed
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
