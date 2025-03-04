@@ -14,8 +14,7 @@ interface MilkContribution {
   contribution_date: string;
   quality_rating: number | null;
   created_at: string;
-  price_per_liter: number;
-  calculated_amount: number;
+  price: number;
 }
 
 interface ContributionHistoryProps {
@@ -33,12 +32,17 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
     const fetchContributions = async () => {
       setIsLoading(true);
       try {
-        // Get milk contributions with pricing info
+        // Get milk contributions with the price field (now stored in the database)
         const { data, error } = await supabase
           .from("milk_contributions")
           .select(`
-            *,
-            milk_pricing!inner(price_per_liter)
+            id,
+            quantity,
+            milk_type,
+            contribution_date,
+            quality_rating,
+            created_at,
+            price
           `)
           .eq("farmer_id", farmerId)
           .order("contribution_date", { ascending: false })
@@ -46,14 +50,7 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
 
         if (error) throw error;
         
-        // Calculate the amount for each contribution
-        const contributionsWithAmount = data.map(contribution => ({
-          ...contribution,
-          price_per_liter: contribution.milk_pricing.price_per_liter,
-          calculated_amount: contribution.quantity * contribution.milk_pricing.price_per_liter
-        }));
-        
-        setContributions(contributionsWithAmount || []);
+        setContributions(data || []);
       } catch (error: any) {
         toast({
           title: "Error loading contributions",
@@ -128,8 +125,8 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
               </TableCell>
               <TableCell>{formatMilkType(contribution.milk_type)}</TableCell>
               <TableCell>{contribution.quantity}</TableCell>
-              <TableCell>₹{contribution.price_per_liter.toFixed(2)}</TableCell>
-              <TableCell className="font-medium">₹{contribution.calculated_amount.toFixed(2)}</TableCell>
+              <TableCell>₹{(contribution.price / contribution.quantity).toFixed(2)}</TableCell>
+              <TableCell className="font-medium">₹{contribution.price.toFixed(2)}</TableCell>
               <TableCell>
                 {getQualityBadge(contribution.quality_rating)}
               </TableCell>

@@ -64,15 +64,13 @@ export const MilkCollectionForm = () => {
       const contributionData = {
         farmer_id: farmerUuid,
         quantity: Number(quantity),
-        // Only use specific values that match the database constraints
-        // The quality_rating field likely has a check constraint for specific values
         quality_rating: Number(qualityRating),
         milk_type: milkType
       };
       
       console.log("Attempting to insert contribution data:", contributionData);
 
-      // Add milk contribution
+      // Add milk contribution - price will be calculated by the trigger
       const { error: contributionError } = await supabase
         .from("milk_contributions")
         .insert(contributionData);

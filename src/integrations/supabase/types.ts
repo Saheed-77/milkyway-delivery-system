@@ -128,6 +128,7 @@ export type Database = {
           farmer_id: string
           id: string
           milk_type: string
+          price: number | null
           quality_rating: number | null
           quantity: number
         }
@@ -137,6 +138,7 @@ export type Database = {
           farmer_id: string
           id?: string
           milk_type?: string
+          price?: number | null
           quality_rating?: number | null
           quantity: number
         }
@@ -146,6 +148,7 @@ export type Database = {
           farmer_id?: string
           id?: string
           milk_type?: string
+          price?: number | null
           quality_rating?: number | null
           quantity?: number
         }

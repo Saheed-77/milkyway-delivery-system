@@ -41,6 +41,7 @@ export const MilkContributionForm = ({ farmerId }: MilkContributionFormProps) =>
     setIsSubmitting(true);
 
     try {
+      // The price will be calculated automatically by the database trigger
       const { error } = await supabase.from("milk_contributions").insert({
         farmer_id: farmerId,
         quantity,
