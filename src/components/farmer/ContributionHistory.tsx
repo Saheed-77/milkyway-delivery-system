@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 
 interface MilkContribution {
   id: string;
@@ -13,6 +14,8 @@ interface MilkContribution {
   contribution_date: string;
   quality_rating: number | null;
   created_at: string;
+  price_per_liter: number;
+  calculated_amount: number;
 }
 
 interface ContributionHistoryProps {
@@ -30,15 +33,27 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
     const fetchContributions = async () => {
       setIsLoading(true);
       try {
+        // Get milk contributions with pricing info
         const { data, error } = await supabase
           .from("milk_contributions")
-          .select("*")
+          .select(`
+            *,
+            milk_pricing!inner(price_per_liter)
+          `)
           .eq("farmer_id", farmerId)
           .order("contribution_date", { ascending: false })
-          .limit(10);
+          .limit(20);
 
         if (error) throw error;
-        setContributions(data || []);
+        
+        // Calculate the amount for each contribution
+        const contributionsWithAmount = data.map(contribution => ({
+          ...contribution,
+          price_per_liter: contribution.milk_pricing.price_per_liter,
+          calculated_amount: contribution.quantity * contribution.milk_pricing.price_per_liter
+        }));
+        
+        setContributions(contributionsWithAmount || []);
       } catch (error: any) {
         toast({
           title: "Error loading contributions",
@@ -66,13 +81,30 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
   if (contributions.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        No contributions recorded yet. Start by adding your first contribution!
+        No contributions recorded yet. Contact an administrator to record your contributions.
       </div>
     );
   }
 
   const formatMilkType = (type: string) => {
     return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
+  const getQualityBadge = (rating: number | null) => {
+    if (rating === null) return <Badge className="bg-gray-100 text-gray-800">Pending</Badge>;
+    
+    switch (rating) {
+      case 1:
+        return <Badge className="bg-green-100 text-green-800">A (Excellent)</Badge>;
+      case 2:
+        return <Badge className="bg-blue-100 text-blue-800">B (Good)</Badge>;
+      case 3:
+        return <Badge className="bg-yellow-100 text-yellow-800">C (Average)</Badge>;
+      case 4:
+        return <Badge className="bg-red-100 text-red-800">D (Below Standard)</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
+    }
   };
 
   return (
@@ -83,7 +115,9 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
             <TableHead>Date</TableHead>
             <TableHead>Milk Type</TableHead>
             <TableHead>Quantity (L)</TableHead>
-            <TableHead>Quality Rating</TableHead>
+            <TableHead>Price/L</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Quality</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -94,8 +128,10 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
               </TableCell>
               <TableCell>{formatMilkType(contribution.milk_type)}</TableCell>
               <TableCell>{contribution.quantity}</TableCell>
+              <TableCell>₹{contribution.price_per_liter.toFixed(2)}</TableCell>
+              <TableCell className="font-medium">₹{contribution.calculated_amount.toFixed(2)}</TableCell>
               <TableCell>
-                {contribution.quality_rating ? `${contribution.quality_rating}/10` : "Pending"}
+                {getQualityBadge(contribution.quality_rating)}
               </TableCell>
             </TableRow>
           ))}

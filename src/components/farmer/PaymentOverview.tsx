@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Wallet, History, TrendingUp } from "lucide-react";
 
 interface Payment {
   id: string;
@@ -13,6 +14,13 @@ interface Payment {
   payment_date: string;
   status: string;
   notes: string | null;
+}
+
+interface MilkContribution {
+  quantity: number;
+  milk_type: string;
+  contribution_date: string;
+  price_per_liter: number;
 }
 
 interface PaymentOverviewProps {
@@ -24,34 +32,70 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [totalEarnings, setTotalEarnings] = useState<number>(0);
   const [pendingAmount, setPendingAmount] = useState<number>(0);
+  const [contributions, setContributions] = useState<MilkContribution[]>([]);
+  const [potentialEarnings, setPotentialEarnings] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!farmerId) return;
 
-    const fetchPayments = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
       try {
         // Fetch recent payments
-        const { data, error } = await supabase
+        const { data: paymentsData, error: paymentsError } = await supabase
           .from("farmer_payments")
           .select("*")
           .eq("farmer_id", farmerId)
           .order("payment_date", { ascending: false })
           .limit(5);
 
-        if (error) throw error;
-        setPayments(data || []);
+        if (paymentsError) throw paymentsError;
+        setPayments(paymentsData || []);
 
         // Calculate total earnings (completed payments)
-        const completedPayments = data?.filter(p => p.status === "completed") || [];
+        const completedPayments = paymentsData?.filter(p => p.status === "completed") || [];
         const total = completedPayments.reduce((sum, payment) => sum + payment.amount, 0);
         setTotalEarnings(total);
 
         // Calculate pending amount
-        const pending = data?.filter(p => p.status === "pending") || [];
+        const pending = paymentsData?.filter(p => p.status === "pending") || [];
         const pendingTotal = pending.reduce((sum, payment) => sum + payment.amount, 0);
         setPendingAmount(pendingTotal);
+
+        // Fetch milk contributions with pricing
+        const { data: contributionsData, error: contributionsError } = await supabase
+          .from("milk_contributions")
+          .select(`
+            id, 
+            quantity, 
+            milk_type, 
+            contribution_date,
+            milk_pricing(price_per_liter)
+          `)
+          .eq("farmer_id", farmerId)
+          .order("contribution_date", { ascending: false })
+          .limit(30);
+
+        if (contributionsError) throw contributionsError;
+
+        // Format contributions with price information
+        const formattedContributions = contributionsData?.map(c => ({
+          quantity: c.quantity,
+          milk_type: c.milk_type,
+          contribution_date: c.contribution_date,
+          price_per_liter: c.milk_pricing?.price_per_liter || 0
+        })) || [];
+        
+        setContributions(formattedContributions);
+
+        // Calculate potential earnings based on contributions
+        const potential = formattedContributions.reduce(
+          (sum, contrib) => sum + (contrib.quantity * contrib.price_per_liter), 
+          0
+        );
+        setPotentialEarnings(potential);
+
       } catch (error: any) {
         toast({
           title: "Error loading payments",
@@ -63,7 +107,7 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
       }
     };
 
-    fetchPayments();
+    fetchData();
   }, [farmerId, toast]);
 
   if (isLoading) {
@@ -90,17 +134,32 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6 flex flex-col items-center">
+            <div className="rounded-full p-2 bg-green-100 mb-2">
+              <Wallet className="h-5 w-5 text-green-600" />
+            </div>
             <p className="text-sm text-muted-foreground mb-1">Total Earned</p>
             <p className="text-2xl font-bold text-green-600">₹{totalEarnings.toFixed(2)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 flex flex-col items-center">
+            <div className="rounded-full p-2 bg-amber-100 mb-2">
+              <History className="h-5 w-5 text-amber-600" />
+            </div>
             <p className="text-sm text-muted-foreground mb-1">Pending</p>
             <p className="text-2xl font-bold text-amber-600">₹{pendingAmount.toFixed(2)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 flex flex-col items-center">
+            <div className="rounded-full p-2 bg-blue-100 mb-2">
+              <TrendingUp className="h-5 w-5 text-blue-600" />
+            </div>
+            <p className="text-sm text-muted-foreground mb-1">Potential</p>
+            <p className="text-2xl font-bold text-blue-600">₹{potentialEarnings.toFixed(2)}</p>
           </CardContent>
         </Card>
       </div>
