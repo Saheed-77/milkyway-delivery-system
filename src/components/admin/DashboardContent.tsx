@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -8,6 +9,9 @@ import {
 import { FarmersList } from "./FarmersList";
 import { FarmerRegistrationForm } from "./FarmerRegistrationForm";
 import { MilkCollectionForm } from "./MilkCollectionForm";
+import { CustomerOrders } from "./CustomerOrders";
+import { MilkPricingForm } from "./MilkPricingForm";
+import { DeliverySummary } from "../delivery/DeliverySummary";
 import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -41,48 +45,52 @@ export const DashboardContent = ({
   switch (activeSection) {
     case "dashboard":
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Total Milk Stock</CardTitle>
-              <CardDescription>Current milk stock in liters</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{totalMilkStock} L</div>
-              <div className="flex items-center text-sm text-muted-foreground mt-2">
-                <Milk className="w-4 h-4 mr-2" />
-                <span>Updated daily</span>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Total Milk Stock</CardTitle>
+                <CardDescription>Current milk stock in liters</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{totalMilkStock} L</div>
+                <div className="flex items-center text-sm text-muted-foreground mt-2">
+                  <Milk className="w-4 h-4 mr-2" />
+                  <span>Updated daily</span>
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>New Orders</CardTitle>
-              <CardDescription>Total new orders placed today</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">25</div>
-              <div className="flex items-center text-sm text-muted-foreground mt-2">
-                <ShoppingBag className="w-4 h-4 mr-2" />
-                <span>Compared to yesterday</span>
-              </div>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>New Orders</CardTitle>
+                <CardDescription>Total new orders placed today</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">25</div>
+                <div className="flex items-center text-sm text-muted-foreground mt-2">
+                  <ShoppingBag className="w-4 h-4 mr-2" />
+                  <span>Compared to yesterday</span>
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Website Visits</CardTitle>
-              <CardDescription>Number of visits to the website</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">1,250</div>
-              <div className="flex items-center text-sm text-muted-foreground mt-2">
-                <ChartBar className="w-4 h-4 mr-2" />
-                <span>Increased by 15%</span>
-              </div>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Website Visits</CardTitle>
+                <CardDescription>Number of visits to the website</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">1,250</div>
+                <div className="flex items-center text-sm text-muted-foreground mt-2">
+                  <ChartBar className="w-4 h-4 mr-2" />
+                  <span>Increased by 15%</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <DeliverySummary />
         </div>
       );
     case "farmers":
@@ -144,31 +152,16 @@ export const DashboardContent = ({
             </CardContent>
           </Card>
           <MilkCollectionForm />
+          <MilkPricingForm />
         </div>
       );
     case "orders":
-      return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Customer Orders</CardTitle>
-            <CardDescription>Manage orders from customers</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Coming soon...</p>
-          </CardContent>
-        </Card>
-      );
+      return <CustomerOrders />;
     case "delivery":
       return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Delivery Management</CardTitle>
-            <CardDescription>Schedule and track deliveries</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500">Coming soon...</p>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <DeliverySummary />
+        </div>
       );
     default:
       return null;

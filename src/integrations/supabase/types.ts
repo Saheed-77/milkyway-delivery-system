@@ -159,6 +159,30 @@ export type Database = {
           },
         ]
       }
+      milk_pricing: {
+        Row: {
+          created_at: string
+          id: string
+          milk_type: string
+          price_per_liter: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          milk_type: string
+          price_per_liter: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          milk_type?: string
+          price_per_liter?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
