@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { useToast } from "@/components/ui/use-toast";
 import { DeliverySummary } from "@/components/delivery/DeliverySummary";
 import { PendingDeliveries } from "@/components/delivery/PendingDeliveries";
@@ -128,6 +129,7 @@ const DeliveryDashboard = () => {
                       ? `Welcome, ${deliveryProfile.first_name}` 
                       : 'Delivery Dashboard'}
                   </h1>
+                  <LogoutButton />
                 </div>
               </header>
               
