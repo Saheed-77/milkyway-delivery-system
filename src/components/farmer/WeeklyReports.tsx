@@ -55,12 +55,12 @@ export const WeeklyReports = ({ farmerId }: WeeklyReportsProps) => {
         const lastWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
         const lastWeekEnd = endOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
 
-        // Fetch current week contributions
+        // Fetch current week contributions with price
         const { data: currentWeekContributions, error: currentWeekError } = await supabase
           .from("milk_contributions")
           .select(`
             *,
-            milk_pricing!inner(price_per_liter)
+            price
           `)
           .eq("farmer_id", farmerId)
           .gte("contribution_date", currentWeekStart.toISOString())
@@ -69,12 +69,12 @@ export const WeeklyReports = ({ farmerId }: WeeklyReportsProps) => {
 
         if (currentWeekError) throw currentWeekError;
 
-        // Fetch last week contributions
+        // Fetch last week contributions with price
         const { data: lastWeekContributions, error: lastWeekError } = await supabase
           .from("milk_contributions")
           .select(`
             *,
-            milk_pricing!inner(price_per_liter)
+            price
           `)
           .eq("farmer_id", farmerId)
           .gte("contribution_date", lastWeekStart.toISOString())
@@ -96,7 +96,7 @@ export const WeeklyReports = ({ farmerId }: WeeklyReportsProps) => {
           
           const totalQuantity = dayContributions.reduce((sum, contrib) => sum + contrib.quantity, 0);
           const totalEarnings = dayContributions.reduce(
-            (sum, contrib) => sum + (contrib.quantity * contrib.milk_pricing.price_per_liter), 
+            (sum, contrib) => sum + (contrib.price || 0), 
             0
           );
           
@@ -120,7 +120,7 @@ export const WeeklyReports = ({ farmerId }: WeeklyReportsProps) => {
           
           const totalQuantity = dayContributions.reduce((sum, contrib) => sum + contrib.quantity, 0);
           const totalEarnings = dayContributions.reduce(
-            (sum, contrib) => sum + (contrib.quantity * contrib.milk_pricing.price_per_liter), 
+            (sum, contrib) => sum + (contrib.price || 0), 
             0
           );
           

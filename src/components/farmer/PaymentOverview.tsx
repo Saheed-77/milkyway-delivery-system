@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +19,7 @@ interface MilkContribution {
   quantity: number;
   milk_type: string;
   contribution_date: string;
-  price_per_liter: number;
+  price: number;
 }
 
 interface PaymentOverviewProps {
@@ -63,7 +62,7 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
         const pendingTotal = pending.reduce((sum, payment) => sum + payment.amount, 0);
         setPendingAmount(pendingTotal);
 
-        // Fetch milk contributions with pricing
+        // Fetch milk contributions with price (now stored directly in the table)
         const { data: contributionsData, error: contributionsError } = await supabase
           .from("milk_contributions")
           .select(`
@@ -71,7 +70,7 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
             quantity, 
             milk_type, 
             contribution_date,
-            milk_pricing(price_per_liter)
+            price
           `)
           .eq("farmer_id", farmerId)
           .order("contribution_date", { ascending: false })
@@ -79,22 +78,14 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
 
         if (contributionsError) throw contributionsError;
 
-        // Format contributions with price information
-        const formattedContributions = contributionsData?.map(c => ({
-          quantity: c.quantity,
-          milk_type: c.milk_type,
-          contribution_date: c.contribution_date,
-          price_per_liter: c.milk_pricing?.price_per_liter || 0
-        })) || [];
-        
-        setContributions(formattedContributions);
+        setContributions(contributionsData || []);
 
         // Calculate potential earnings based on contributions
-        const potential = formattedContributions.reduce(
-          (sum, contrib) => sum + (contrib.quantity * contrib.price_per_liter), 
+        const potential = contributionsData?.reduce(
+          (sum, contrib) => sum + (contrib.price || 0), 
           0
         );
-        setPotentialEarnings(potential);
+        setPotentialEarnings(potential || 0);
 
       } catch (error: any) {
         toast({
