@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { useToast } from "@/components/ui/use-toast";
-import { Sidebar, SidebarProvider } from "@/components/ui/sidebar";
+import { Sidebar, SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { DashboardContent } from "@/components/admin/DashboardContent";
 import { Navbar } from "@/components/layout/Navbar";
@@ -150,37 +150,43 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8f7f3]">
-      <Navbar showAuthButtons={false} />
-      <SidebarProvider>
-        <div className="flex-1 flex w-full">
-          <Sidebar>
-            <DashboardSidebar 
-              userType="admin" 
-              activeSection={activeSection} 
-              onSectionChange={setActiveSection} 
-            />
-          </Sidebar>
-
-          <div className="flex-1 p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-3xl font-bold text-[#437358]">
-                {adminProfile?.first_name 
-                  ? `Welcome, ${adminProfile.first_name}` 
-                  : 'Admin Dashboard'}
-              </h1>
-              <LogoutButton />
-            </div>
-            <DashboardContent
-              activeSection={activeSection}
-              pendingFarmers={pendingFarmers}
-              approvedFarmers={approvedFarmers}
-              totalMilkStock={totalMilkStock}
-              onApprove={(id) => handleFarmerStatus(id, 'approved')}
-              onReject={(id) => handleFarmerStatus(id, 'rejected')}
-            />
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <Navbar showAuthButtons={false} />
+      </div>
+      
+      <div className="pt-16 flex-1 flex">
+        <SidebarProvider>
+          <div className="flex-1 flex w-full">
+            <Sidebar>
+              <DashboardSidebar 
+                userType="admin" 
+                activeSection={activeSection} 
+                onSectionChange={setActiveSection} 
+              />
+            </Sidebar>
+            <SidebarInset>
+              <div className="min-h-screen p-4 md:p-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-3">
+                  <h1 className="text-2xl md:text-3xl font-bold text-[#437358]">
+                    {adminProfile?.first_name 
+                      ? `Welcome, ${adminProfile.first_name}` 
+                      : 'Admin Dashboard'}
+                  </h1>
+                  <LogoutButton />
+                </div>
+                <DashboardContent
+                  activeSection={activeSection}
+                  pendingFarmers={pendingFarmers}
+                  approvedFarmers={approvedFarmers}
+                  totalMilkStock={totalMilkStock}
+                  onApprove={(id) => handleFarmerStatus(id, 'approved')}
+                  onReject={(id) => handleFarmerStatus(id, 'rejected')}
+                />
+              </div>
+            </SidebarInset>
           </div>
-        </div>
-      </SidebarProvider>
+        </SidebarProvider>
+      </div>
     </div>
   );
 };

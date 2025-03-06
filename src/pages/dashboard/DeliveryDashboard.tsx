@@ -110,38 +110,43 @@ const DeliveryDashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8f7f3]">
-      <Navbar showAuthButtons={false} />
-      <SidebarProvider>
-        <div className="flex-1 flex w-full">
-          <Sidebar>
-            <DashboardSidebar 
-              userType="delivery" 
-              activeSection={getActiveSection()}
-            />
-          </Sidebar>
-          
-          <SidebarInset>
-            <div className="min-h-screen">
-              <header className="border-b border-border bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <h1 className="text-2xl font-bold text-[#437358]">
-                    {deliveryProfile?.first_name 
-                      ? `Welcome, ${deliveryProfile.first_name}` 
-                      : 'Delivery Dashboard'}
-                  </h1>
-                  <LogoutButton />
-                </div>
-              </header>
-              
-              <main className="flex-1 overflow-y-auto p-6">
-                <div className="max-w-7xl mx-auto space-y-6">
-                  {renderContent()}
-                </div>
-              </main>
-            </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <Navbar showAuthButtons={false} />
+      </div>
+      
+      <div className="pt-16 flex-1 flex">
+        <SidebarProvider>
+          <div className="flex-1 flex w-full">
+            <Sidebar>
+              <DashboardSidebar 
+                userType="delivery" 
+                activeSection={getActiveSection()}
+              />
+            </Sidebar>
+            
+            <SidebarInset>
+              <div className="min-h-screen">
+                <header className="border-b border-border bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <h1 className="text-2xl font-bold text-[#437358]">
+                      {deliveryProfile?.first_name 
+                        ? `Welcome, ${deliveryProfile.first_name}` 
+                        : 'Delivery Dashboard'}
+                    </h1>
+                    <LogoutButton />
+                  </div>
+                </header>
+                
+                <main className="flex-1 overflow-y-auto p-6">
+                  <div className="max-w-7xl mx-auto space-y-6">
+                    {renderContent()}
+                  </div>
+                </main>
+              </div>
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
+      </div>
     </div>
   );
 };

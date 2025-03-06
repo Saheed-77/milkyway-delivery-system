@@ -48,7 +48,9 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-[#f8f7f3] flex flex-col">
-      <Navbar />
+      <div className="z-50">
+        <Navbar />
+      </div>
       <div className="flex-1 flex items-center justify-center">
         <AuthForm userType={userType as "admin" | "farmer" | "customer" | "delivery"} />
       </div>

@@ -70,90 +70,95 @@ const FarmerDashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8f7f3]">
-      <Navbar showAuthButtons={false} />
-      <SidebarProvider>
-        <div className="flex-1 flex w-full">
-          <Sidebar>
-            <DashboardSidebar 
-              userType="farmer" 
-              activeSection={activeTab}
-              onSectionChange={handleTabChange}
-            />
-          </Sidebar>
-          <SidebarInset>
-            <div className="min-h-screen p-4 md:p-8">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-3">
-                <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-[#437358]">
-                    {farmerProfile?.first_name ? `Welcome, ${farmerProfile.first_name}` : 'Farmer Dashboard'}
-                  </h1>
-                  <p className="text-sm text-muted-foreground">
-                    Manage your milk contributions and track your payments
-                  </p>
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <Navbar showAuthButtons={false} />
+      </div>
+      
+      <div className="pt-16 flex-1 flex">
+        <SidebarProvider>
+          <div className="flex-1 flex w-full">
+            <Sidebar>
+              <DashboardSidebar 
+                userType="farmer" 
+                activeSection={activeTab}
+                onSectionChange={handleTabChange}
+              />
+            </Sidebar>
+            <SidebarInset>
+              <div className="min-h-screen p-4 md:p-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-3">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-[#437358]">
+                      {farmerProfile?.first_name ? `Welcome, ${farmerProfile.first_name}` : 'Farmer Dashboard'}
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                      Manage your milk contributions and track your payments
+                    </p>
+                  </div>
+                  <LogoutButton />
                 </div>
-                <LogoutButton />
+                
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                  <TabsList className="mb-6 w-full justify-start">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="wallet">Wallet</TabsTrigger>
+                    <TabsTrigger value="history">Contribution History</TabsTrigger>
+                    <TabsTrigger value="reports">Weekly Reports</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="overview">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Payment Overview</CardTitle>
+                        <CardDescription>Track your earnings from milk contributions</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <PaymentOverview farmerId={farmerProfile?.id} />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="wallet">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Wallet</CardTitle>
+                        <CardDescription>Manage your earnings and transactions</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <FarmerWallet farmerId={farmerProfile?.id} />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="history">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Contribution History</CardTitle>
+                        <CardDescription>View your past milk contributions</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ContributionHistory farmerId={farmerProfile?.id} />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                  
+                  <TabsContent value="reports">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Weekly Reports</CardTitle>
+                        <CardDescription>View your weekly production and earnings</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <WeeklyReports farmerId={farmerProfile?.id} />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
               </div>
-              
-              <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                <TabsList className="mb-6 w-full justify-start">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="wallet">Wallet</TabsTrigger>
-                  <TabsTrigger value="history">Contribution History</TabsTrigger>
-                  <TabsTrigger value="reports">Weekly Reports</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="overview">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Payment Overview</CardTitle>
-                      <CardDescription>Track your earnings from milk contributions</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <PaymentOverview farmerId={farmerProfile?.id} />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                
-                <TabsContent value="wallet">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Wallet</CardTitle>
-                      <CardDescription>Manage your earnings and transactions</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <FarmerWallet farmerId={farmerProfile?.id} />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                
-                <TabsContent value="history">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Contribution History</CardTitle>
-                      <CardDescription>View your past milk contributions</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ContributionHistory farmerId={farmerProfile?.id} />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                
-                <TabsContent value="reports">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Weekly Reports</CardTitle>
-                      <CardDescription>View your weekly production and earnings</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <WeeklyReports farmerId={farmerProfile?.id} />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
+      </div>
     </div>
   );
 };
