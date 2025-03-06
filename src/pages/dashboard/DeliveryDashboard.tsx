@@ -2,20 +2,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { DeliverySidebar } from "@/components/delivery/DeliverySidebar";
 import { DeliverySummary } from "@/components/delivery/DeliverySummary";
 import { PendingDeliveries } from "@/components/delivery/PendingDeliveries";
 import { CompletedDeliveries } from "@/components/delivery/CompletedDeliveries";
 import { DeliverySchedule } from "@/components/delivery/DeliverySchedule";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
+import { Navbar } from "@/components/layout/Navbar";
+import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 
 const DeliveryDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [deliveryProfile, setDeliveryProfile] = useState<any>(null);
 
   useEffect(() => {
     checkUser();
@@ -32,14 +33,17 @@ const DeliveryDashboard = () => {
     // Check if user is a delivery person
     const { data: profile } = await supabase
       .from('profiles')
-      .select('user_type')
+      .select('user_type, first_name, last_name')
       .eq('id', session.user.id)
       .single();
 
     if (profile?.user_type !== 'delivery') {
       await supabase.auth.signOut();
       navigate('/auth/delivery');
+      return;
     }
+
+    setDeliveryProfile(profile);
   };
 
   const handleSignOut = async () => {
@@ -76,6 +80,8 @@ const DeliveryDashboard = () => {
       return 'completed';
     } else if (path.includes('/schedule')) {
       return 'schedule';
+    } else if (path.includes('/settings')) {
+      return 'settings';
     } else {
       return 'overview';
     }
@@ -102,29 +108,36 @@ const DeliveryDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[#f8f7f3]">
+    <div className="min-h-screen flex flex-col bg-[#f8f7f3]">
+      <Navbar showAuthButtons={false} />
       <SidebarProvider>
-        <DeliverySidebar />
-        
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="border-b border-border bg-white p-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-[#437358]">Delivery Dashboard</h1>
-              <Button
-                variant="outline"
-                onClick={handleSignOut}
-                className="text-[#437358]"
-              >
-                Sign Out
-              </Button>
-            </div>
-          </header>
+        <div className="flex-1 flex w-full">
+          <Sidebar>
+            <DashboardSidebar 
+              userType="delivery" 
+              activeSection={getActiveSection()}
+            />
+          </Sidebar>
           
-          <main className="flex-1 overflow-y-auto p-6">
-            <div className="max-w-7xl mx-auto space-y-6">
-              {renderContent()}
+          <SidebarInset>
+            <div className="min-h-screen">
+              <header className="border-b border-border bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-bold text-[#437358]">
+                    {deliveryProfile?.first_name 
+                      ? `Welcome, ${deliveryProfile.first_name}` 
+                      : 'Delivery Dashboard'}
+                  </h1>
+                </div>
+              </header>
+              
+              <main className="flex-1 overflow-y-auto p-6">
+                <div className="max-w-7xl mx-auto space-y-6">
+                  {renderContent()}
+                </div>
+              </main>
             </div>
-          </main>
+          </SidebarInset>
         </div>
       </SidebarProvider>
     </div>

@@ -4,9 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { useToast } from "@/components/ui/use-toast";
-import { Sidebar, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { Sidebar, SidebarProvider } from "@/components/ui/sidebar";
+import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 import { DashboardContent } from "@/components/admin/DashboardContent";
+import { Navbar } from "@/components/layout/Navbar";
 
 interface FarmerProfile {
   id: string;
@@ -27,8 +28,9 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const [pendingFarmers, setPendingFarmers] = useState<FarmerProfile[]>([]);
   const [approvedFarmers, setApprovedFarmers] = useState<FarmerProfile[]>([]);
-  const [activeSection, setActiveSection] = useState("dashboard"); // Default to dashboard instead of farmers
+  const [activeSection, setActiveSection] = useState("dashboard");
   const [totalMilkStock, setTotalMilkStock] = useState<number>(0);
+  const [adminProfile, setAdminProfile] = useState<any>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -40,13 +42,16 @@ const AdminDashboard = () => {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("user_type")
+        .select("user_type, first_name, last_name")
         .eq("id", session.user.id)
         .single();
 
       if (profile?.user_type !== "admin") {
         navigate("/");
+        return;
       }
+
+      setAdminProfile(profile);
     };
 
     checkAuth();
@@ -144,34 +149,39 @@ const AdminDashboard = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-[#f8f7f3]">
-        <Sidebar>
-          <AdminSidebar 
-            activeSection={activeSection} 
-            onSectionChange={setActiveSection} 
-          />
-        </Sidebar>
+    <div className="min-h-screen flex flex-col bg-[#f8f7f3]">
+      <Navbar showAuthButtons={false} />
+      <SidebarProvider>
+        <div className="flex-1 flex w-full">
+          <Sidebar>
+            <DashboardSidebar 
+              userType="admin" 
+              activeSection={activeSection} 
+              onSectionChange={setActiveSection} 
+            />
+          </Sidebar>
 
-        <div className="flex-1 p-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-[#437358]">Admin Dashboard</h1>
-            <div className="flex items-center gap-4">
-              <SidebarTrigger />
+          <div className="flex-1 p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-3xl font-bold text-[#437358]">
+                {adminProfile?.first_name 
+                  ? `Welcome, ${adminProfile.first_name}` 
+                  : 'Admin Dashboard'}
+              </h1>
               <LogoutButton />
             </div>
+            <DashboardContent
+              activeSection={activeSection}
+              pendingFarmers={pendingFarmers}
+              approvedFarmers={approvedFarmers}
+              totalMilkStock={totalMilkStock}
+              onApprove={(id) => handleFarmerStatus(id, 'approved')}
+              onReject={(id) => handleFarmerStatus(id, 'rejected')}
+            />
           </div>
-          <DashboardContent
-            activeSection={activeSection}
-            pendingFarmers={pendingFarmers}
-            approvedFarmers={approvedFarmers}
-            totalMilkStock={totalMilkStock}
-            onApprove={(id) => handleFarmerStatus(id, 'approved')}
-            onReject={(id) => handleFarmerStatus(id, 'rejected')}
-          />
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </div>
   );
 };
 

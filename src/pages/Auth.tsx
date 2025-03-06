@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { Navbar } from "@/components/layout/Navbar";
 
 const Auth = () => {
   const { userType } = useParams<{ userType: string }>();
@@ -46,8 +47,11 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f7f3] flex flex-col items-center justify-center">
-      <AuthForm userType={userType as "admin" | "farmer" | "customer" | "delivery"} />
+    <div className="min-h-screen bg-[#f8f7f3] flex flex-col">
+      <Navbar />
+      <div className="flex-1 flex items-center justify-center">
+        <AuthForm userType={userType as "admin" | "farmer" | "customer" | "delivery"} />
+      </div>
     </div>
   );
 };
