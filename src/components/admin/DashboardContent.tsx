@@ -12,7 +12,8 @@ import { MilkCollectionForm } from "./MilkCollectionForm";
 import { CustomerOrders } from "./CustomerOrders";
 import { MilkPricingForm } from "./MilkPricingForm";
 import { DeliverySummary } from "../delivery/DeliverySummary";
-import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus } from "lucide-react";
+import { Reports } from "./Reports";
+import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface FarmerProfile {
@@ -163,6 +164,8 @@ export const DashboardContent = ({
           <DeliverySummary />
         </div>
       );
+    case "reports":
+      return <Reports />;
     default:
       return null;
   }

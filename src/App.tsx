@@ -30,6 +30,7 @@ const App = () => (
           <Route path="/dashboard/delivery/pending" element={<DeliveryDashboard />} />
           <Route path="/dashboard/delivery/completed" element={<DeliveryDashboard />} />
           <Route path="/dashboard/delivery/schedule" element={<DeliveryDashboard />} />
+          <Route path="/dashboard/delivery/collections" element={<DeliveryDashboard />} />
           <Route path="/dashboard/delivery/settings" element={<DeliveryDashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

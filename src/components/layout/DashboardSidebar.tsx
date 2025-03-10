@@ -15,7 +15,9 @@ import {
   Package,
   Check,
   Clock,
-  Settings
+  Settings,
+  BarChart3,
+  FileText
 } from "lucide-react";
 import {
   SidebarContent,
@@ -57,6 +59,7 @@ export const DashboardSidebar = ({
           { id: "collections", title: "Milk Collections", icon: Milk },
           { id: "orders", title: "Customer Orders", icon: MessageSquare },
           { id: "delivery", title: "Delivery Management", icon: Truck },
+          { id: "reports", title: "Reports", icon: BarChart3 },
         ];
       case "farmer":
         return [
@@ -77,6 +80,7 @@ export const DashboardSidebar = ({
           { id: "pending", title: "Pending Deliveries", icon: Clock, url: "/dashboard/delivery/pending" },
           { id: "completed", title: "Completed Deliveries", icon: Check, url: "/dashboard/delivery/completed" },
           { id: "schedule", title: "Delivery Schedule", icon: Calendar, url: "/dashboard/delivery/schedule" },
+          { id: "collections", title: "Milk Collections", icon: Milk, url: "/dashboard/delivery/collections" },
           { id: "settings", title: "Settings", icon: Settings, url: "/dashboard/delivery/settings" },
         ];
       default:

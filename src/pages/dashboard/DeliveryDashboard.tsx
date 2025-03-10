@@ -8,6 +8,7 @@ import { DeliverySummary } from "@/components/delivery/DeliverySummary";
 import { PendingDeliveries } from "@/components/delivery/PendingDeliveries";
 import { CompletedDeliveries } from "@/components/delivery/CompletedDeliveries";
 import { DeliverySchedule } from "@/components/delivery/DeliverySchedule";
+import { MilkCollection } from "@/components/delivery/MilkCollection";
 import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
@@ -81,6 +82,8 @@ const DeliveryDashboard = () => {
       return 'completed';
     } else if (path.includes('/schedule')) {
       return 'schedule';
+    } else if (path.includes('/collections')) {
+      return 'collections';
     } else if (path.includes('/settings')) {
       return 'settings';
     } else {
@@ -98,6 +101,8 @@ const DeliveryDashboard = () => {
         return <CompletedDeliveries />;
       case 'schedule':
         return <DeliverySchedule />;
+      case 'collections':
+        return <MilkCollection />;
       default:
         return (
           <div className="space-y-6">
