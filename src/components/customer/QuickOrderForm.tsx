@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,84 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-export const QuickOrderForm = () => {
+export const QuickOrderForm = ({ onOrderComplete }) => {
   const [quantity, setQuantity] = useState("1");
   const [milkType, setMilkType] = useState("cow");
   const [isLoading, setIsLoading] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [estimatedCost, setEstimatedCost] = useState(0);
+  const [insufficientFunds, setInsufficientFunds] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchWalletBalance();
+    estimateOrderCost();
+  }, [milkType, quantity]);
+
+  const fetchWalletBalance = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Get all wallet transactions for the user
+      const { data, error } = await supabase
+        .from("wallet_transactions")
+        .select("amount, transaction_type, status")
+        .eq("user_id", session.user.id)
+        .eq("status", "completed");
+
+      if (error) throw error;
+
+      // Calculate balance from transactions
+      const calculatedBalance = data?.reduce((total, transaction) => {
+        if (transaction.transaction_type === "deposit") {
+          return total + transaction.amount;
+        } else if (transaction.transaction_type === "withdrawal") {
+          return total - transaction.amount;
+        }
+        return total;
+      }, 0) || 0;
+
+      setWalletBalance(calculatedBalance);
+    } catch (error) {
+      console.error("Error fetching wallet balance:", error);
+    }
+  };
+
+  const estimateOrderCost = async () => {
+    try {
+      // Fetch products of the selected milk type
+      const { data: products, error: productsError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("milk_type", milkType)
+        .order("price")
+        .limit(1);
+      
+      if (productsError) {
+        console.error("Products error:", productsError);
+        return;
+      }
+      
+      if (!products || products.length === 0) {
+        setEstimatedCost(0);
+        return;
+      }
+
+      // Calculate estimated cost
+      const selectedProduct = products[0];
+      const totalAmount = selectedProduct.price * parseInt(quantity);
+      setEstimatedCost(totalAmount);
+      
+      // Check if wallet has sufficient funds
+      setInsufficientFunds(walletBalance < totalAmount);
+    } catch (error) {
+      console.error("Error estimating cost:", error);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,7 +103,10 @@ export const QuickOrderForm = () => {
         throw new Error("You must be logged in to place an order");
       }
 
-      // 2. Fetch products of the selected milk type
+      // 2. Check wallet balance again (in case it changed)
+      await fetchWalletBalance();
+      
+      // 3. Fetch products of the selected milk type
       const { data: products, error: productsError } = await supabase
         .from("products")
         .select("*")
@@ -48,11 +123,16 @@ export const QuickOrderForm = () => {
         throw new Error(`No ${milkType} milk products available`);
       }
 
-      // 3. Use the first product of the selected milk type
+      // 4. Calculate total amount
       const selectedProduct = products[0];
       const totalAmount = selectedProduct.price * parseInt(quantity);
+      
+      // 5. Check if wallet has sufficient funds
+      if (walletBalance < totalAmount) {
+        throw new Error(`Insufficient funds. Please add at least $${(totalAmount - walletBalance).toFixed(2)} to your wallet.`);
+      }
 
-      // 4. Create order
+      // 6. Create order
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -68,7 +148,7 @@ export const QuickOrderForm = () => {
         throw new Error("Error creating order: " + orderError.message);
       }
 
-      // 5. Create order item
+      // 7. Create order item
       const { data: orderItemData, error: itemError } = await supabase
         .from("order_items")
         .insert({
@@ -88,6 +168,24 @@ export const QuickOrderForm = () => {
         throw new Error("Error adding item to order: " + itemError.message);
       }
 
+      // 8. Deduct amount from wallet
+      const { error: walletError } = await supabase
+        .from("wallet_transactions")
+        .insert({
+          user_id: session.user.id,
+          amount: totalAmount,
+          transaction_type: "withdrawal",
+          status: "completed"
+        });
+
+      if (walletError) {
+        console.error("Wallet error:", walletError);
+        throw new Error("Error updating wallet: " + walletError.message);
+      }
+
+      // 9. Update wallet balance
+      await fetchWalletBalance();
+
       toast({
         title: "Order Placed!",
         description: `Your order for ${quantity} unit(s) of ${milkType} milk has been submitted.`,
@@ -95,6 +193,11 @@ export const QuickOrderForm = () => {
 
       // Reset form
       setQuantity("1");
+      
+      // Notify parent that order was completed to refresh order history
+      if (onOrderComplete) {
+        onOrderComplete();
+      }
       
     } catch (error) {
       console.error("Error placing order:", error);
@@ -143,11 +246,32 @@ export const QuickOrderForm = () => {
             />
           </div>
 
+          <div className="mt-3 flex justify-between text-sm">
+            <span>Estimated Cost:</span>
+            <span className="font-medium">${estimatedCost.toFixed(2)}</span>
+          </div>
+          
+          <div className="mt-1 flex justify-between text-sm">
+            <span>Wallet Balance:</span>
+            <span className={`font-medium ${insufficientFunds ? 'text-red-600' : 'text-green-600'}`}>
+              ${walletBalance.toFixed(2)}
+            </span>
+          </div>
+
+          {insufficientFunds && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Insufficient funds. Please add at least ${(estimatedCost - walletBalance).toFixed(2)} to your wallet.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <CardFooter className="px-0 pt-2">
             <Button 
               type="submit" 
               className="w-full bg-[#437358] hover:bg-[#345c46]"
-              disabled={isLoading}
+              disabled={isLoading || insufficientFunds}
             >
               {isLoading ? "Processing..." : "Place Order"}
             </Button>

@@ -21,45 +21,45 @@ import { Package, Clock, CheckCircle, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { OrderActions } from "./OrderActions";
 
-export const OrdersList = () => {
+export const OrdersList = ({ refreshTrigger = 0 }) => {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-
-        const { data, error } = await supabase
-          .from("orders")
-          .select(`
-            *,
-            order_items (
-              *,
-              product:product_id (name, milk_type)
-            )
-          `)
-          .eq("customer_id", session.user.id)
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-        setOrders(data || []);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load your orders. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchOrders();
-  }, [toast]);
+  }, [refreshTrigger]); // Re-fetch when refreshTrigger changes
+
+  const fetchOrders = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select(`
+          *,
+          order_items (
+            *,
+            product:product_id (name, milk_type)
+          )
+        `)
+        .eq("customer_id", session.user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load your orders. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleOrderStatusUpdate = (orderId, newStatus) => {
     setOrders(prevOrders => 
@@ -124,7 +124,6 @@ export const OrdersList = () => {
                   <TableHead>Items</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -145,12 +144,6 @@ export const OrdersList = () => {
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(order.status)}
-                    </TableCell>
-                    <TableCell>
-                      <OrderActions 
-                        order={order} 
-                        onStatusUpdate={handleOrderStatusUpdate} 
-                      />
                     </TableCell>
                   </TableRow>
                 ))}

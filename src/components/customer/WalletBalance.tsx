@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditCard, PlusCircle, Banknote } from "lucide-react";
 
-export const WalletBalance = () => {
+export const WalletBalance = ({ refreshTrigger = 0 }) => {
   const [balance, setBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [rechargeAmount, setRechargeAmount] = useState("");
@@ -16,45 +16,45 @@ export const WalletBalance = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchWalletBalance = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-
-        // Get all wallet transactions for the user
-        const { data, error } = await supabase
-          .from("wallet_transactions")
-          .select("amount, transaction_type, status")
-          .eq("user_id", session.user.id)
-          .eq("status", "completed");
-
-        if (error) throw error;
-
-        // Calculate balance from transactions
-        const calculatedBalance = data?.reduce((total, transaction) => {
-          if (transaction.transaction_type === "deposit") {
-            return total + transaction.amount;
-          } else if (transaction.transaction_type === "withdrawal") {
-            return total - transaction.amount;
-          }
-          return total;
-        }, 0) || 0;
-
-        setBalance(calculatedBalance);
-      } catch (error) {
-        console.error("Error fetching wallet balance:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load your wallet balance. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchWalletBalance();
-  }, [toast]);
+  }, [refreshTrigger]); // Re-fetch when refreshTrigger changes
+
+  const fetchWalletBalance = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Get all wallet transactions for the user
+      const { data, error } = await supabase
+        .from("wallet_transactions")
+        .select("amount, transaction_type, status")
+        .eq("user_id", session.user.id)
+        .eq("status", "completed");
+
+      if (error) throw error;
+
+      // Calculate balance from transactions
+      const calculatedBalance = data?.reduce((total, transaction) => {
+        if (transaction.transaction_type === "deposit") {
+          return total + transaction.amount;
+        } else if (transaction.transaction_type === "withdrawal") {
+          return total - transaction.amount;
+        }
+        return total;
+      }, 0) || 0;
+
+      setBalance(calculatedBalance);
+    } catch (error) {
+      console.error("Error fetching wallet balance:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load your wallet balance. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleRecharge = async (e) => {
     e.preventDefault();

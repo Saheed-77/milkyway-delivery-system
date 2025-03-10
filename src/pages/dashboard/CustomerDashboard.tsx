@@ -15,6 +15,7 @@ const CustomerDashboard = () => {
   const navigate = useNavigate();
   const [customerProfile, setCustomerProfile] = useState<any>(null);
   const [activeSection, setActiveSection] = useState("orders");
+  const [refreshOrdersTrigger, setRefreshOrdersTrigger] = useState(0);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -43,6 +44,11 @@ const CustomerDashboard = () => {
 
     checkAuth();
   }, [navigate]);
+
+  const handleOrderComplete = () => {
+    // Trigger a refresh of the orders list
+    setRefreshOrdersTrigger(prev => prev + 1);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8f7f3]">
@@ -74,10 +80,10 @@ const CustomerDashboard = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                   <div className="md:col-span-1">
-                    <QuickOrderForm />
+                    <QuickOrderForm onOrderComplete={handleOrderComplete} />
                   </div>
                   <div className="md:col-span-1">
-                    <WalletBalance />
+                    <WalletBalance refreshTrigger={refreshOrdersTrigger} />
                   </div>
                   <div className="md:col-span-1">
                     <SubscriptionsList />
@@ -85,7 +91,7 @@ const CustomerDashboard = () => {
                 </div>
 
                 <div className="mt-6">
-                  <OrdersList />
+                  <OrdersList refreshTrigger={refreshOrdersTrigger} />
                 </div>
               </div>
             </SidebarInset>
