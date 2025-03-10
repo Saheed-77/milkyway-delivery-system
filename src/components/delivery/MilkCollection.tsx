@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Truck, Check } from "lucide-react";
 
+// Define a proper type for milk stock
 interface MilkStock {
-  total_stock: number;
+  total_stock: number | null;
 }
 
 export const MilkCollection = () => {
@@ -54,15 +55,20 @@ export const MilkCollection = () => {
 
       if (contributionError) throw contributionError;
 
-      // Update total milk stock
-      const { data: currentStock, error: stockReadError } = await supabase
+      // Update total milk stock - fix the type issue by properly casting the response
+      const { data, error: stockReadError } = await supabase
         .from('milk_stock')
-        .select('total_stock')
-        .single();
+        .select('total_stock');
 
       if (stockReadError) throw stockReadError;
 
-      const newTotal = (currentStock?.total_stock || 0) + parseFloat(quantity);
+      // Safely handle the data - make sure it's properly typed
+      let currentStock = 0;
+      if (data && data.length > 0 && data[0].total_stock !== null) {
+        currentStock = data[0].total_stock;
+      }
+
+      const newTotal = currentStock + parseFloat(quantity);
 
       const { error: stockError } = await supabase
         .from('milk_stock')
