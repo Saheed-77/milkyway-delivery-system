@@ -9,6 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Truck, Check } from "lucide-react";
 
+interface MilkStock {
+  total_stock: number;
+}
+
 export const MilkCollection = () => {
   const [farmerId, setFarmerId] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -51,10 +55,12 @@ export const MilkCollection = () => {
       if (contributionError) throw contributionError;
 
       // Update total milk stock
-      const { data: currentStock } = await supabase
+      const { data: currentStock, error: stockReadError } = await supabase
         .from('milk_stock')
         .select('total_stock')
         .single();
+
+      if (stockReadError) throw stockReadError;
 
       const newTotal = (currentStock?.total_stock || 0) + parseFloat(quantity);
 
@@ -75,7 +81,7 @@ export const MilkCollection = () => {
       setQuantity("");
       setQualityRating("5");
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error recording collection:', error);
       toast({
         title: 'Error',

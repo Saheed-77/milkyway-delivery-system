@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,11 +46,11 @@ export const Reports = () => {
           const date = new Date(curr.contribution_date).toLocaleDateString();
           acc[date] = (acc[date] || 0) + Number(curr.quantity);
           return acc;
-        }, {});
+        }, {} as Record<string, number>);
 
         const processedContributionData = Object.entries(contributionByDate).map(([date, total_quantity]) => ({
           contribution_date: date,
-          total_quantity,
+          total_quantity: total_quantity as number,
         })).sort((a, b) => new Date(a.contribution_date).getTime() - new Date(b.contribution_date).getTime());
 
         setContributionData(processedContributionData);
