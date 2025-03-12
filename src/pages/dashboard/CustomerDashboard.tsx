@@ -88,6 +88,8 @@ const CustomerDashboard = () => {
         );
       case "subscriptions":
         return <SubscriptionsList />;
+      case "transactions":
+        return <TransactionHistory refreshTrigger={refreshOrdersTrigger} />;
       default:
         return null;
     }

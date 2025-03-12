@@ -73,6 +73,7 @@ export const DashboardSidebar = ({
           { id: "orders", title: "My Orders", icon: Package },
           { id: "wallet", title: "Wallet", icon: CreditCard },
           { id: "subscriptions", title: "Subscriptions", icon: Calendar },
+          { id: "transactions", title: "Transaction History", icon: FileText },
         ];
       case "delivery":
         return [
