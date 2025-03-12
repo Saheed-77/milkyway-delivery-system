@@ -104,7 +104,7 @@ export const DashboardSidebar = ({
   })();
 
   return (
-    <SidebarContent>
+    <SidebarContent className="pt-16">
       <SidebarGroup>
         <SidebarGroupLabel>{`${userType.charAt(0).toUpperCase() + userType.slice(1)} Dashboard`}</SidebarGroupLabel>
         <SidebarGroupContent>

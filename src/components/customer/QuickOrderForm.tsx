@@ -248,13 +248,13 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
 
           <div className="mt-3 flex justify-between text-sm">
             <span>Estimated Cost:</span>
-            <span className="font-medium">${estimatedCost.toFixed(2)}</span>
+            <span className="font-medium">₹{estimatedCost.toFixed(2)}</span>
           </div>
           
           <div className="mt-1 flex justify-between text-sm">
             <span>Wallet Balance:</span>
-            <span className={`font-medium ${insufficientFunds ? 'text-red-600' : 'text-green-600'}`}>
-              ${walletBalance.toFixed(2)}
+            <span className={`font-medium ₹{insufficientFunds ? 'text-red-600' : 'text-green-600'}`}>
+              ₹{walletBalance.toFixed(2)}
             </span>
           </div>
 
@@ -262,7 +262,7 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
             <Alert variant="destructive" className="mt-2">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Insufficient funds. Please add at least ${(estimatedCost - walletBalance).toFixed(2)} to your wallet.
+                Insufficient funds. Please add at least ₹{(estimatedCost - walletBalance).toFixed(2)} to your wallet.
               </AlertDescription>
             </Alert>
           )}

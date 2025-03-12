@@ -91,7 +91,7 @@ export const WalletBalance = ({ refreshTrigger = 0 }) => {
       
       toast({
         title: "Wallet Recharged!",
-        description: `Successfully added $${amount.toFixed(2)} to your wallet.`,
+        description: `Successfully added ₹${amount.toFixed(2)} to your wallet.`,
       });
     } catch (error) {
       console.error("Error recharging wallet:", error);
@@ -120,7 +120,7 @@ export const WalletBalance = ({ refreshTrigger = 0 }) => {
                 <CreditCard className="h-6 w-6 mr-3 text-[#437358]" />
                 <div>
                   <p className="text-sm text-muted-foreground">Available Balance</p>
-                  <p className="text-2xl font-bold text-[#437358]">${balance.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-[#437358]">₹{balance.toFixed(2)}</p>
                 </div>
               </div>
               <Banknote className="h-8 w-8 text-[#437358] opacity-30" />

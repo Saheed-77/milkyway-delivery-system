@@ -140,7 +140,7 @@ export const OrdersList = ({ refreshTrigger = 0 }) => {
                       ))}
                     </TableCell>
                     <TableCell className="text-right">
-                      ${order.total_amount.toFixed(2)}
+                    ₹{order.total_amount.toFixed(2)}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(order.status)}
