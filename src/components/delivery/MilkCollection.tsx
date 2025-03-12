@@ -55,21 +55,27 @@ export const MilkCollection = () => {
 
       if (contributionError) throw contributionError;
 
-      // Update total milk stock - fix the type issue by properly casting the response
+      // Update total milk stock with proper type handling
       const { data, error: stockReadError } = await supabase
         .from('milk_stock')
         .select('total_stock');
 
       if (stockReadError) throw stockReadError;
 
-      // Safely handle the data - make sure it's properly typed
+      // Safely handle the data with proper type checking
       let currentStock = 0;
-      if (data && data.length > 0 && data[0].total_stock !== null) {
-        currentStock = data[0].total_stock;
+      if (data && data.length > 0) {
+        // Cast the data[0] to the MilkStock type for proper access
+        const stockData = data[0] as MilkStock;
+        if (stockData.total_stock !== null) {
+          currentStock = stockData.total_stock;
+        }
       }
 
+      // Calculate the new total stock
       const newTotal = currentStock + parseFloat(quantity);
 
+      // Update the milk_stock table with the new total
       const { error: stockError } = await supabase
         .from('milk_stock')
         .update({ total_stock: newTotal })

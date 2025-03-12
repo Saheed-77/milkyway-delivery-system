@@ -7,6 +7,7 @@ import { QuickOrderForm } from "@/components/customer/QuickOrderForm";
 import { SubscriptionsList } from "@/components/customer/SubscriptionsList";
 import { WalletBalance } from "@/components/customer/WalletBalance";
 import { OrdersList } from "@/components/customer/OrdersList";
+import { TransactionHistory } from "@/components/customer/TransactionHistory";
 import { Navbar } from "@/components/layout/Navbar";
 import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
@@ -50,6 +51,48 @@ const CustomerDashboard = () => {
     setRefreshOrdersTrigger(prev => prev + 1);
   };
 
+  const renderActiveSection = () => {
+    switch (activeSection) {
+      case "orders":
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              <div className="md:col-span-1">
+                <QuickOrderForm onOrderComplete={handleOrderComplete} />
+              </div>
+              <div className="md:col-span-1">
+                <WalletBalance refreshTrigger={refreshOrdersTrigger} />
+              </div>
+              <div className="md:col-span-1">
+                <SubscriptionsList />
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <OrdersList refreshTrigger={refreshOrdersTrigger} />
+            </div>
+          </>
+        );
+      case "wallet":
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+              <div className="md:col-span-1">
+                <WalletBalance refreshTrigger={refreshOrdersTrigger} />
+              </div>
+              <div className="md:col-span-2">
+                <TransactionHistory refreshTrigger={refreshOrdersTrigger} />
+              </div>
+            </div>
+          </>
+        );
+      case "subscriptions":
+        return <SubscriptionsList />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f8f7f3]">
       <div className="fixed top-0 left-0 right-0 z-50">
@@ -78,21 +121,7 @@ const CustomerDashboard = () => {
                   <LogoutButton />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                  <div className="md:col-span-1">
-                    <QuickOrderForm onOrderComplete={handleOrderComplete} />
-                  </div>
-                  <div className="md:col-span-1">
-                    <WalletBalance refreshTrigger={refreshOrdersTrigger} />
-                  </div>
-                  <div className="md:col-span-1">
-                    <SubscriptionsList />
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <OrdersList refreshTrigger={refreshOrdersTrigger} />
-                </div>
+                {renderActiveSection()}
               </div>
             </SidebarInset>
           </div>
