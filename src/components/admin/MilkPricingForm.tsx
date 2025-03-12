@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Milk } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface MilkPricing {
   id: string;
@@ -25,6 +26,7 @@ export const MilkPricingForm = () => {
   const [milkPricing, setMilkPricing] = useState<MilkPricing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [updateProducts, setUpdateProducts] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -74,10 +76,31 @@ export const MilkPricingForm = () => {
         
         if (error) throw error;
       }
+
+      // Update product prices if the switch is enabled
+      if (updateProducts) {
+        for (const pricing of milkPricing) {
+          const { error } = await supabase
+            .from("products")
+            .update({ price: pricing.price_per_liter })
+            .eq("milk_type", pricing.milk_type);
+          
+          if (error) {
+            console.error("Error updating product prices:", error);
+            toast({
+              title: "Warning",
+              description: "Milk pricing updated but product prices could not be updated",
+              variant: "destructive",
+            });
+          }
+        }
+      }
       
       toast({
         title: "Success",
-        description: "Milk pricing updated successfully",
+        description: updateProducts 
+          ? "Milk pricing and product prices updated successfully" 
+          : "Milk pricing updated successfully",
       });
     } catch (error) {
       console.error("Error updating milk pricing:", error);
@@ -126,6 +149,17 @@ export const MilkPricingForm = () => {
                 </div>
               </div>
             ))}
+            
+            <div className="flex items-center space-x-2 pt-4">
+              <Switch 
+                id="update-products"
+                checked={updateProducts}
+                onCheckedChange={setUpdateProducts}
+              />
+              <Label htmlFor="update-products">
+                Also update product prices in customer section
+              </Label>
+            </div>
           </div>
         )}
       </CardContent>
