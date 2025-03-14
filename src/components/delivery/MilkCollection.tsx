@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Milk } from "lucide-react";
 
-// Define a proper type for milk stock data
 interface MilkStock {
+  id: number;
   total_stock: number | null;
 }
 
@@ -56,14 +56,17 @@ export const MilkCollection = () => {
       // Update total milk stock with proper type handling
       const { data: stockData, error: stockReadError } = await supabase
         .from('milk_stock')
-        .select('total_stock');
+        .select('total_stock, id');
 
       if (stockReadError) throw stockReadError;
 
       // Safely handle the data with proper type checking
       let currentStock = 0;
+      let stockId = 1;
+      
       if (stockData && stockData.length > 0) {
         const stockItem = stockData[0] as MilkStock;
+        stockId = stockItem.id;
         if (stockItem.total_stock !== null) {
           currentStock = stockItem.total_stock;
         }
@@ -74,7 +77,7 @@ export const MilkCollection = () => {
       const { error: updateError } = await supabase
         .from('milk_stock')
         .update({ total_stock: newTotal })
-        .eq('id', 1); // Assuming there's only one milk_stock record with id=1
+        .eq('id', stockId);
 
       if (updateError) throw updateError;
 

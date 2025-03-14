@@ -59,6 +59,16 @@ export const SubscriptionsList = () => {
     fetchSubscriptions();
     fetchProducts();
     fetchWalletBalance();
+
+    // Set up a timer to check for subscriptions that need to be fulfilled
+    const timer = setInterval(() => {
+      processSubscriptionOrders();
+    }, 60000); // Check every minute
+
+    // Initial check
+    processSubscriptionOrders();
+
+    return () => clearInterval(timer);
   }, []);
 
   const fetchWalletBalance = async () => {
@@ -79,7 +89,7 @@ export const SubscriptionsList = () => {
         for (const transaction of data) {
           if (transaction.transaction_type === "deposit") {
             balance += transaction.amount;
-          } else {
+          } else if (transaction.transaction_type === "withdrawal") {
             balance -= transaction.amount;
           }
         }
@@ -133,6 +143,157 @@ export const SubscriptionsList = () => {
     }
   };
 
+  const processSubscriptionOrders = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - 5); // Add a small buffer to catch any subscriptions that might have been missed
+
+      const { data: dueSubscriptions, error } = await supabase
+        .from("subscriptions")
+        .select(`
+          *,
+          product:product_id (id, name, price, description)
+        `)
+        .eq("customer_id", session.user.id)
+        .eq("status", "active")
+        .lt("next_delivery", now.toISOString());
+
+      if (error) throw error;
+
+      // Process each due subscription
+      if (dueSubscriptions && dueSubscriptions.length > 0) {
+        for (const subscription of dueSubscriptions) {
+          await createOrderFromSubscription(subscription);
+        }
+        // Refresh subscriptions list
+        fetchSubscriptions();
+      }
+    } catch (error) {
+      console.error("Error processing subscription orders:", error);
+    }
+  };
+
+  const createOrderFromSubscription = async (subscription: Subscription) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Calculate total amount
+      const totalAmount = subscription.product.price * subscription.quantity;
+
+      // Check wallet balance
+      if (walletBalance < totalAmount) {
+        // If insufficient funds, skip this order and update next delivery date
+        const nextDelivery = calculateNextDeliveryDate(subscription.frequency);
+        await updateSubscriptionNextDelivery(subscription.id, nextDelivery);
+        
+        toast({
+          title: "Subscription Order Skipped",
+          description: `Insufficient funds for your ${subscription.product.name} subscription. Please add funds to your wallet.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create order
+      const { data: orderData, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          customer_id: session.user.id,
+          total_amount: totalAmount,
+          status: "pending"
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order item
+      const { error: itemError } = await supabase
+        .from("order_items")
+        .insert({
+          order_id: orderData.id,
+          product_id: subscription.product.id,
+          quantity: subscription.quantity,
+          unit_price: subscription.product.price
+        });
+
+      if (itemError) throw itemError;
+
+      // Deduct from wallet
+      const { error: walletError } = await supabase
+        .from("wallet_transactions")
+        .insert({
+          user_id: session.user.id,
+          amount: totalAmount,
+          transaction_type: "withdrawal",
+          status: "completed"
+        });
+
+      if (walletError) throw walletError;
+
+      // Update next delivery date
+      const nextDelivery = calculateNextDeliveryDate(subscription.frequency);
+      await updateSubscriptionNextDelivery(subscription.id, nextDelivery);
+
+      // Update wallet balance
+      fetchWalletBalance();
+      
+      toast({
+        title: "Subscription Order Created",
+        description: `Your scheduled order for ${subscription.quantity} units of ${subscription.product.name} has been placed.`,
+      });
+    } catch (error) {
+      console.error("Error creating order from subscription:", error);
+    }
+  };
+
+  const updateSubscriptionNextDelivery = async (subscriptionId: string, nextDelivery: Date) => {
+    try {
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({ next_delivery: nextDelivery.toISOString() })
+        .eq("id", subscriptionId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error updating next delivery date:", error);
+    }
+  };
+
+  const calculateNextDeliveryDate = (frequency: string) => {
+    let nextDelivery = new Date();
+    nextDelivery.setHours(8, 0, 0, 0); // Set to 8:00 AM
+
+    switch (frequency) {
+      case "daily":
+        nextDelivery.setDate(nextDelivery.getDate() + 1);
+        break;
+      case "weekly":
+        nextDelivery.setDate(nextDelivery.getDate() + 7);
+        break;
+      case "monthly":
+        nextDelivery.setMonth(nextDelivery.getMonth() + 1);
+        break;
+      case "3_months":
+        nextDelivery.setMonth(nextDelivery.getMonth() + 3);
+        break;
+      case "6_months":
+        nextDelivery.setMonth(nextDelivery.getMonth() + 6);
+        break;
+      case "yearly":
+        nextDelivery.setFullYear(nextDelivery.getFullYear() + 1);
+        break;
+      default:
+        nextDelivery.setDate(nextDelivery.getDate() + 1);
+    }
+    
+    return nextDelivery;
+  };
+
   const handleCancelSubscription = async (id: string) => {
     try {
       const { error } = await supabase
@@ -142,9 +303,8 @@ export const SubscriptionsList = () => {
 
       if (error) throw error;
 
-      setSubscriptions(subscriptions.map(sub => 
-        sub.id === id ? { ...sub, status: "cancelled" } : sub
-      ));
+      // Remove from the local state rather than just updating status
+      setSubscriptions(subscriptions.filter(sub => sub.id !== id));
 
       toast({
         title: "Subscription Cancelled",
@@ -200,32 +360,7 @@ export const SubscriptionsList = () => {
       }
 
       // Calculate the next delivery date based on frequency
-      let nextDelivery = new Date();
-      nextDelivery.setHours(8, 0, 0, 0); // Set to 8:00 AM
-
-      // Adjust date based on the selected frequency
-      switch (newSubscription.frequency) {
-        case "daily":
-          nextDelivery.setDate(nextDelivery.getDate() + 1); // Next day
-          break;
-        case "weekly":
-          nextDelivery.setDate(nextDelivery.getDate() + 7); // Next week
-          break;
-        case "monthly":
-          nextDelivery.setMonth(nextDelivery.getMonth() + 1); // Next month
-          break;
-        case "3_months":
-          nextDelivery.setMonth(nextDelivery.getMonth() + 3); // 3 months
-          break;
-        case "6_months":
-          nextDelivery.setMonth(nextDelivery.getMonth() + 6); // 6 months
-          break;
-        case "yearly":
-          nextDelivery.setFullYear(nextDelivery.getFullYear() + 1); // Next year
-          break;
-        default:
-          nextDelivery.setDate(nextDelivery.getDate() + 1); // Default to next day
-      }
+      const nextDelivery = calculateNextDeliveryDate(newSubscription.frequency);
 
       // Create the subscription
       const { data: subscription, error: subscriptionError } = await supabase
@@ -248,7 +383,7 @@ export const SubscriptionsList = () => {
         .insert({
           user_id: session.user.id,
           amount: totalCost,
-          transaction_type: "subscription",
+          transaction_type: "withdrawal",
           status: "completed"
         });
 
