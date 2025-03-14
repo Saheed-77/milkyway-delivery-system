@@ -74,7 +74,7 @@ export const MilkCollection = () => {
       const { error: updateError } = await supabase
         .from('milk_stock')
         .update({ total_stock: newTotal })
-        .eq('total_stock', currentStock);
+        .eq('id', 1); // Assuming there's only one milk_stock record with id=1
 
       if (updateError) throw updateError;
 

@@ -4,7 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Calendar, Milk, ArrowUpDown, Check, Plus } from "lucide-react";
+import { Calendar, Milk, ArrowUpDown, Plus } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { 
   Dialog, 
@@ -202,7 +202,30 @@ export const SubscriptionsList = () => {
       // Calculate the next delivery date based on frequency
       let nextDelivery = new Date();
       nextDelivery.setHours(8, 0, 0, 0); // Set to 8:00 AM
-      nextDelivery.setDate(nextDelivery.getDate() + 1); // Start from tomorrow
+
+      // Adjust date based on the selected frequency
+      switch (newSubscription.frequency) {
+        case "daily":
+          nextDelivery.setDate(nextDelivery.getDate() + 1); // Next day
+          break;
+        case "weekly":
+          nextDelivery.setDate(nextDelivery.getDate() + 7); // Next week
+          break;
+        case "monthly":
+          nextDelivery.setMonth(nextDelivery.getMonth() + 1); // Next month
+          break;
+        case "3_months":
+          nextDelivery.setMonth(nextDelivery.getMonth() + 3); // 3 months
+          break;
+        case "6_months":
+          nextDelivery.setMonth(nextDelivery.getMonth() + 6); // 6 months
+          break;
+        case "yearly":
+          nextDelivery.setFullYear(nextDelivery.getFullYear() + 1); // Next year
+          break;
+        default:
+          nextDelivery.setDate(nextDelivery.getDate() + 1); // Default to next day
+      }
 
       // Create the subscription
       const { data: subscription, error: subscriptionError } = await supabase
@@ -262,11 +285,24 @@ export const SubscriptionsList = () => {
   const renderFrequencyText = (frequency: string) => {
     switch (frequency) {
       case "daily": return "Daily";
-      case "alternate_days": return "Every 2 days";
       case "weekly": return "Weekly";
       case "monthly": return "Monthly";
+      case "3_months": return "Every 3 Months";
+      case "6_months": return "Every 6 Months";
+      case "yearly": return "Yearly";
       default: return frequency;
     }
+  };
+
+  // Calculate total subscription cost
+  const calculateSubscriptionCost = () => {
+    if (!newSubscription.productId) return 0;
+    
+    const selectedProduct = products.find(p => p.id === newSubscription.productId);
+    if (!selectedProduct) return 0;
+    
+    const quantity = parseInt(newSubscription.quantity) || 0;
+    return selectedProduct.price * quantity;
   };
 
   // Format the product price to show rupees
@@ -305,7 +341,7 @@ export const SubscriptionsList = () => {
             <DialogHeader>
               <DialogTitle>Subscribe to Regular Delivery</DialogTitle>
               <DialogDescription>
-                Choose a milk product and delivery frequency for regular deliveries.
+                Choose a milk product, quantity, and subscription period.
               </DialogDescription>
             </DialogHeader>
             
@@ -341,33 +377,30 @@ export const SubscriptionsList = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="frequency">Delivery Frequency</Label>
+                <Label htmlFor="frequency">Subscription Period</Label>
                 <Select 
                   value={newSubscription.frequency} 
                   onValueChange={(value) => setNewSubscription({...newSubscription, frequency: value})}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select frequency" />
+                    <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="alternate_days">Every 2 days</SelectItem>
                     <SelectItem value="weekly">Weekly</SelectItem>
                     <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="3_months">3 Months</SelectItem>
+                    <SelectItem value="6_months">6 Months</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="bg-gray-50 p-3 rounded-lg mt-4">
                 <p className="text-sm font-medium">Wallet Balance: {formatPrice(walletBalance)}</p>
-                {newSubscription.productId && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Subscription Cost: {formatPrice(
-                      products.find(p => p.id === newSubscription.productId)?.price || 0 * 
-                      parseInt(newSubscription.quantity || "0")
-                    )}
-                  </p>
-                )}
+                <p className="text-sm text-muted-foreground mt-1">
+                  Subscription Cost: {formatPrice(calculateSubscriptionCost())}
+                </p>
               </div>
             </div>
             
