@@ -56,7 +56,7 @@ export const MilkCollection = () => {
       // Update total milk stock with proper type handling
       const { data: stockData, error: stockReadError } = await supabase
         .from('milk_stock')
-        .select('total_stock, id');
+        .select('*');
 
       if (stockReadError) throw stockReadError;
 
@@ -65,11 +65,8 @@ export const MilkCollection = () => {
       let stockId = 1;
       
       if (stockData && stockData.length > 0) {
-        const stockItem = stockData[0] as MilkStock;
-        stockId = stockItem.id;
-        if (stockItem.total_stock !== null) {
-          currentStock = stockItem.total_stock;
-        }
+        currentStock = stockData[0].total_stock || 0;
+        stockId = stockData[0].id || 1;
       }
 
       // Update the milk stock

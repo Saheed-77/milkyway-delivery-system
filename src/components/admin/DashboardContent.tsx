@@ -13,7 +13,8 @@ import { CustomerOrders } from "./CustomerOrders";
 import { MilkPricingForm } from "./MilkPricingForm";
 import { DeliverySummary } from "../delivery/DeliverySummary";
 import { Reports } from "./Reports";
-import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus, BarChart3 } from "lucide-react";
+import { FarmerPaymentApproval } from "./FarmerPaymentApproval";
+import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus, BarChart3, CreditCard } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface FarmerProfile {
@@ -106,6 +107,10 @@ export const DashboardContent = ({
               <UserPlus className="w-4 h-4" />
               New Registrations
             </TabsTrigger>
+            <TabsTrigger value="payments" className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4" />
+              Farmer Payments
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="approval" className="space-y-6">
@@ -136,6 +141,13 @@ export const DashboardContent = ({
             {/* Farmers Registration Form */}
             <div>
               <FarmerRegistrationForm />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="payments">
+            {/* Farmer Payment Approval */}
+            <div>
+              <FarmerPaymentApproval />
             </div>
           </TabsContent>
         </Tabs>

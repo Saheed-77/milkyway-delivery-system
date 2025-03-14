@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -5,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, History, TrendingUp } from "lucide-react";
+import { Wallet, History, TrendingUp, ArrowUp } from "lucide-react";
 
 interface Payment {
   id: string;
@@ -20,6 +21,7 @@ interface MilkContribution {
   milk_type: string;
   contribution_date: string;
   price: number;
+  payment_id: string | null;
 }
 
 interface PaymentOverviewProps {
@@ -33,6 +35,7 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
   const [pendingAmount, setPendingAmount] = useState<number>(0);
   const [contributions, setContributions] = useState<MilkContribution[]>([]);
   const [potentialEarnings, setPotentialEarnings] = useState<number>(0);
+  const [unpaidContributions, setUnpaidContributions] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -62,7 +65,7 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
         const pendingTotal = pending.reduce((sum, payment) => sum + payment.amount, 0);
         setPendingAmount(pendingTotal);
 
-        // Fetch milk contributions with price (now stored directly in the table)
+        // Fetch milk contributions with price and payment_id to determine if they've been paid
         const { data: contributionsData, error: contributionsError } = await supabase
           .from("milk_contributions")
           .select(`
@@ -70,7 +73,8 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
             quantity, 
             milk_type, 
             contribution_date,
-            price
+            price,
+            payment_id
           `)
           .eq("farmer_id", farmerId)
           .order("contribution_date", { ascending: false })
@@ -86,6 +90,13 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
           0
         );
         setPotentialEarnings(potential || 0);
+
+        // Calculate unpaid contributions (those without a payment_id)
+        const unpaid = contributionsData?.filter(c => !c.payment_id).reduce(
+          (sum, contrib) => sum + (contrib.price || 0),
+          0
+        );
+        setUnpaidContributions(unpaid || 0);
 
       } catch (error: any) {
         toast({
@@ -125,7 +136,7 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6 flex flex-col items-center">
             <div className="rounded-full p-2 bg-green-100 mb-2">
@@ -151,6 +162,15 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
             </div>
             <p className="text-sm text-muted-foreground mb-1">Potential</p>
             <p className="text-2xl font-bold text-blue-600">₹{potentialEarnings.toFixed(2)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 flex flex-col items-center">
+            <div className="rounded-full p-2 bg-purple-100 mb-2">
+              <ArrowUp className="h-5 w-5 text-purple-600" />
+            </div>
+            <p className="text-sm text-muted-foreground mb-1">Unpaid</p>
+            <p className="text-2xl font-bold text-purple-600">₹{unpaidContributions.toFixed(2)}</p>
           </CardContent>
         </Card>
       </div>
