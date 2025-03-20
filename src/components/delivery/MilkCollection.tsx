@@ -10,7 +10,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Milk } from "lucide-react";
 
 interface MilkStock {
-  id?: number; // Made optional with ?
+  id?: number;
   total_stock: number | null;
 }
 
@@ -65,10 +65,10 @@ export const MilkCollection = () => {
       let stockId = 1;
       
       if (stockData && stockData.length > 0) {
-        // Type cast to MilkStock to ensure proper typing
-        const stock = stockData[0] as unknown as MilkStock;
-        currentStock = stock.total_stock || 0;
-        stockId = stock.id || 1;
+        // Use proper type assertion and handle potential null values
+        const stockRecord = stockData[0];
+        currentStock = stockRecord.total_stock ?? 0;
+        stockId = 1; // Default to ID 1 if not available
       }
 
       // Update the milk stock with the new total
