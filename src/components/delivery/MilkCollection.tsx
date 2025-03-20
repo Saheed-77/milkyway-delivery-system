@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Milk } from "lucide-react";
 
-interface MilkStock {
+type MilkStock = {
   id?: number;
   total_stock: number | null;
-}
+};
 
 export const MilkCollection = () => {
   const [quantity, setQuantity] = useState("");
@@ -65,17 +65,20 @@ export const MilkCollection = () => {
       let stockId = 1;
       
       if (stockData && stockData.length > 0) {
-        // Use proper type assertion and handle potential null values
-        const stockRecord = stockData[0];
-        currentStock = stockRecord.total_stock ?? 0;
-        stockId = 1; // Default to ID 1 if not available
+        const stockItem = stockData[0] as unknown as MilkStock;
+        currentStock = stockItem.total_stock ?? 0;
       }
 
       // Update the milk stock with the new total
       const newTotal = currentStock + parseFloat(quantity);
+      
+      const updateData = {
+        total_stock: newTotal
+      };
+      
       const { error: updateError } = await supabase
         .from('milk_stock')
-        .update({ total_stock: newTotal })
+        .update(updateData)
         .eq('id', stockId);
 
       if (updateError) throw updateError;

@@ -163,13 +163,18 @@ export const FarmerPaymentApproval = () => {
       if (walletError) throw walletError;
 
       // 3. Mark all unpaid contributions as paid by linking them to this payment
-      // Using RPC call with proper type handling
-      const { error: contributionError } = await supabase.rpc(
-        'link_contributions_to_payment', 
+      // Define the correct parameter types for the RPC call
+      type LinkContributionsParams = {
+        farmer_id: string;
+        payment_id: string;
+      }
+      
+      const { error: contributionError } = await supabase.rpc<void, LinkContributionsParams>(
+        'link_contributions_to_payment',
         {
           farmer_id: farmerId,
           payment_id: paymentData[0].id
-        } as any  // Using type assertion to avoid type mismatch
+        }
       );
 
       if (contributionError) {
