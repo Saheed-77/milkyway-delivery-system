@@ -73,7 +73,7 @@ export const FarmerPaymentApproval = () => {
             .from('milk_contributions')
             .select('*, farmer_payments!left(id, status)')
             .eq('farmer_id', farmer.id)
-            .is('farmer_payments.id', null);
+            .is('payment_id', null);
 
           if (contributionError) throw contributionError;
 
@@ -145,6 +145,10 @@ export const FarmerPaymentApproval = () => {
         .select();
 
       if (paymentError) throw paymentError;
+
+      if (!paymentData || paymentData.length === 0) {
+        throw new Error("Failed to create payment record");
+      }
 
       // 2. Add funds to farmer's wallet
       const { error: walletError } = await supabase

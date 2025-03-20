@@ -20,7 +20,7 @@ interface MilkContribution {
   quantity: number;
   milk_type: string;
   contribution_date: string;
-  price: number;
+  price: number | null;
   payment_id: string | null;
 }
 
@@ -82,21 +82,24 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
 
         if (contributionsError) throw contributionsError;
 
-        setContributions(contributionsData || []);
+        // Ensure we're only using valid contribution data
+        if (contributionsData) {
+          setContributions(contributionsData as MilkContribution[]);
 
-        // Calculate potential earnings based on contributions
-        const potential = contributionsData?.reduce(
-          (sum, contrib) => sum + (contrib.price || 0), 
-          0
-        );
-        setPotentialEarnings(potential || 0);
+          // Calculate potential earnings based on contributions
+          const potential = contributionsData.reduce(
+            (sum, contrib) => sum + (contrib.price || 0), 
+            0
+          );
+          setPotentialEarnings(potential || 0);
 
-        // Calculate unpaid contributions (those without a payment_id)
-        const unpaid = contributionsData?.filter(c => !c.payment_id).reduce(
-          (sum, contrib) => sum + (contrib.price || 0),
-          0
-        );
-        setUnpaidContributions(unpaid || 0);
+          // Calculate unpaid contributions (those without a payment_id)
+          const unpaid = contributionsData.filter(c => !c.payment_id).reduce(
+            (sum, contrib) => sum + (contrib.price || 0),
+            0
+          );
+          setUnpaidContributions(unpaid || 0);
+        }
 
       } catch (error: any) {
         toast({

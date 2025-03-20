@@ -128,6 +128,7 @@ export type Database = {
           farmer_id: string
           id: string
           milk_type: string
+          payment_id: string | null
           price: number | null
           quality_rating: number | null
           quantity: number
@@ -138,6 +139,7 @@ export type Database = {
           farmer_id: string
           id?: string
           milk_type?: string
+          payment_id?: string | null
           price?: number | null
           quality_rating?: number | null
           quantity: number
@@ -148,6 +150,7 @@ export type Database = {
           farmer_id?: string
           id?: string
           milk_type?: string
+          payment_id?: string | null
           price?: number | null
           quality_rating?: number | null
           quantity?: number
@@ -158,6 +161,13 @@ export type Database = {
             columns: ["farmer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "milk_contributions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "farmer_payments"
             referencedColumns: ["id"]
           },
         ]

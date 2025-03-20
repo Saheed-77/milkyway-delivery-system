@@ -10,7 +10,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Milk } from "lucide-react";
 
 interface MilkStock {
-  id: number;
+  id?: number; // Made optional with ?
   total_stock: number | null;
 }
 
@@ -65,11 +65,12 @@ export const MilkCollection = () => {
       let stockId = 1;
       
       if (stockData && stockData.length > 0) {
-        currentStock = stockData[0].total_stock || 0;
-        stockId = stockData[0].id || 1;
+        const stock = stockData[0] as MilkStock;
+        currentStock = stock.total_stock || 0;
+        stockId = stock.id || 1;
       }
 
-      // Update the milk stock
+      // Update the milk stock - using the type-safe approach
       const newTotal = currentStock + parseFloat(quantity);
       const { error: updateError } = await supabase
         .from('milk_stock')
