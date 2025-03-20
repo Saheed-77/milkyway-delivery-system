@@ -84,17 +84,19 @@ export const PaymentOverview = ({ farmerId }: PaymentOverviewProps) => {
 
         // Ensure we're only using valid contribution data
         if (contributionsData) {
-          setContributions(contributionsData as MilkContribution[]);
+          // Force cast the data to our expected type
+          const typedContributions = contributionsData as unknown as MilkContribution[];
+          setContributions(typedContributions);
 
           // Calculate potential earnings based on contributions
-          const potential = contributionsData.reduce(
+          const potential = typedContributions.reduce(
             (sum, contrib) => sum + (contrib.price || 0), 
             0
           );
           setPotentialEarnings(potential || 0);
 
           // Calculate unpaid contributions (those without a payment_id)
-          const unpaid = contributionsData.filter(c => !c.payment_id).reduce(
+          const unpaid = typedContributions.filter(c => !c.payment_id).reduce(
             (sum, contrib) => sum + (contrib.price || 0),
             0
           );

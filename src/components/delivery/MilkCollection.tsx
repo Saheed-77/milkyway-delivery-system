@@ -53,7 +53,7 @@ export const MilkCollection = () => {
 
       if (contributionError) throw contributionError;
 
-      // Update total milk stock with proper type handling
+      // Get milk stock data
       const { data: stockData, error: stockReadError } = await supabase
         .from('milk_stock')
         .select('*');
@@ -65,12 +65,13 @@ export const MilkCollection = () => {
       let stockId = 1;
       
       if (stockData && stockData.length > 0) {
-        const stock = stockData[0] as MilkStock;
+        // Type cast to MilkStock to ensure proper typing
+        const stock = stockData[0] as unknown as MilkStock;
         currentStock = stock.total_stock || 0;
         stockId = stock.id || 1;
       }
 
-      // Update the milk stock - using the type-safe approach
+      // Update the milk stock with the new total
       const newTotal = currentStock + parseFloat(quantity);
       const { error: updateError } = await supabase
         .from('milk_stock')
