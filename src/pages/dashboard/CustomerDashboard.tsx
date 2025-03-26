@@ -6,7 +6,7 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { QuickOrderForm } from "@/components/customer/QuickOrderForm";
 import { SubscriptionsList } from "@/components/customer/SubscriptionsList";
 import { WalletBalance } from "@/components/customer/WalletBalance";
-import { OrdersList } from "@/components/customer/OrdersList";
+import { OrderHistory } from "@/components/customer/OrderHistory";
 import { TransactionHistory } from "@/components/customer/TransactionHistory";
 import { Navbar } from "@/components/layout/Navbar";
 import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
@@ -69,7 +69,7 @@ const CustomerDashboard = () => {
             </div>
 
             <div className="mt-6">
-              <OrdersList refreshTrigger={refreshOrdersTrigger} />
+              <OrderHistory refreshTrigger={refreshOrdersTrigger} />
             </div>
           </>
         );
@@ -90,6 +90,8 @@ const CustomerDashboard = () => {
         return <SubscriptionsList />;
       case "transactions":
         return <TransactionHistory refreshTrigger={refreshOrdersTrigger} />;
+      case "history":
+        return <OrderHistory refreshTrigger={refreshOrdersTrigger} />;
       default:
         return null;
     }
@@ -109,6 +111,9 @@ const CustomerDashboard = () => {
                 userType="customer" 
                 activeSection={activeSection} 
                 onSectionChange={setActiveSection} 
+                customSections={[
+                  { id: "history", label: "Order History", icon: "Package" }
+                ]}
               />
             </Sidebar>
             <SidebarInset>

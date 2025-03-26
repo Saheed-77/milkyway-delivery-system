@@ -9,10 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export const QuickOrderForm = ({ onOrderComplete }) => {
   const [quantity, setQuantity] = useState("1");
   const [milkType, setMilkType] = useState("cow");
+  const [paymentMethod, setPaymentMethod] = useState("wallet");
   const [isLoading, setIsLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [estimatedCost, setEstimatedCost] = useState(0);
@@ -22,7 +24,7 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
   useEffect(() => {
     fetchWalletBalance();
     estimateOrderCost();
-  }, [milkType, quantity]);
+  }, [milkType, quantity, paymentMethod]);
 
   const fetchWalletBalance = async () => {
     try {
@@ -49,6 +51,13 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
       }, 0) || 0;
 
       setWalletBalance(calculatedBalance);
+      
+      // Only check for insufficient funds when using wallet payment
+      if (paymentMethod === "wallet") {
+        setInsufficientFunds(calculatedBalance < estimatedCost);
+      } else {
+        setInsufficientFunds(false);
+      }
     } catch (error) {
       console.error("Error fetching wallet balance:", error);
     }
@@ -79,8 +88,12 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
       const totalAmount = selectedProduct.price * parseInt(quantity);
       setEstimatedCost(totalAmount);
       
-      // Check if wallet has sufficient funds
-      setInsufficientFunds(walletBalance < totalAmount);
+      // Only check for insufficient funds when using wallet payment
+      if (paymentMethod === "wallet") {
+        setInsufficientFunds(walletBalance < totalAmount);
+      } else {
+        setInsufficientFunds(false);
+      }
     } catch (error) {
       console.error("Error estimating cost:", error);
     }
@@ -103,10 +116,7 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
         throw new Error("You must be logged in to place an order");
       }
 
-      // 2. Check wallet balance again (in case it changed)
-      await fetchWalletBalance();
-      
-      // 3. Fetch products of the selected milk type
+      // 2. Fetch products of the selected milk type
       const { data: products, error: productsError } = await supabase
         .from("products")
         .select("*")
@@ -123,22 +133,29 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
         throw new Error(`No ${milkType} milk products available`);
       }
 
-      // 4. Calculate total amount
+      // 3. Calculate total amount
       const selectedProduct = products[0];
       const totalAmount = selectedProduct.price * parseInt(quantity);
       
-      // 5. Check if wallet has sufficient funds
-      if (walletBalance < totalAmount) {
-        throw new Error(`Insufficient funds. Please add at least $${(totalAmount - walletBalance).toFixed(2)} to your wallet.`);
+      // 4. Check if wallet has sufficient funds when using wallet payment
+      if (paymentMethod === "wallet") {
+        // Refresh wallet balance
+        await fetchWalletBalance();
+        
+        if (walletBalance < totalAmount) {
+          throw new Error(`Insufficient funds. Please add at least ₹${(totalAmount - walletBalance).toFixed(2)} to your wallet or select Cash on Delivery.`);
+        }
       }
 
-      // 6. Create order
+      // 5. Create order
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .insert({
           customer_id: session.user.id,
           total_amount: totalAmount,
-          status: "pending"
+          status: "pending",
+          // Add a flag to indicate payment method
+          payment_method: paymentMethod
         })
         .select()
         .single();
@@ -148,7 +165,7 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
         throw new Error("Error creating order: " + orderError.message);
       }
 
-      // 7. Create order item
+      // 6. Create order item
       const { data: orderItemData, error: itemError } = await supabase
         .from("order_items")
         .insert({
@@ -168,27 +185,29 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
         throw new Error("Error adding item to order: " + itemError.message);
       }
 
-      // 8. Deduct amount from wallet
-      const { error: walletError } = await supabase
-        .from("wallet_transactions")
-        .insert({
-          user_id: session.user.id,
-          amount: totalAmount,
-          transaction_type: "withdrawal",
-          status: "completed"
-        });
+      // 7. Only deduct from wallet if using wallet payment
+      if (paymentMethod === "wallet") {
+        const { error: walletError } = await supabase
+          .from("wallet_transactions")
+          .insert({
+            user_id: session.user.id,
+            amount: totalAmount,
+            transaction_type: "withdrawal",
+            status: "completed"
+          });
 
-      if (walletError) {
-        console.error("Wallet error:", walletError);
-        throw new Error("Error updating wallet: " + walletError.message);
+        if (walletError) {
+          console.error("Wallet error:", walletError);
+          throw new Error("Error updating wallet: " + walletError.message);
+        }
+
+        // 8. Update wallet balance
+        await fetchWalletBalance();
       }
-
-      // 9. Update wallet balance
-      await fetchWalletBalance();
 
       toast({
         title: "Order Placed!",
-        description: `Your order for ${quantity} unit(s) of ${milkType} milk has been submitted.`,
+        description: `Your order for ${quantity} unit(s) of ${milkType} milk has been submitted with ${paymentMethod === "wallet" ? "wallet payment" : "cash on delivery"}.`,
       });
 
       // Reset form
@@ -246,23 +265,34 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
             />
           </div>
 
+          <div className="space-y-2">
+            <Label>Payment Method</Label>
+            <RadioGroup 
+              value={paymentMethod} 
+              onValueChange={setPaymentMethod}
+              className="flex flex-col space-y-1"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="wallet" id="wallet-payment" />
+                <Label htmlFor="wallet-payment" className="cursor-pointer">Wallet (₹{walletBalance.toFixed(2)})</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="cod" id="cod-payment" />
+                <Label htmlFor="cod-payment" className="cursor-pointer">Cash on Delivery</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
           <div className="mt-3 flex justify-between text-sm">
             <span>Estimated Cost:</span>
             <span className="font-medium">₹{estimatedCost.toFixed(2)}</span>
           </div>
-          
-          <div className="mt-1 flex justify-between text-sm">
-            <span>Wallet Balance:</span>
-            <span className={`font-medium ₹{insufficientFunds ? 'text-red-600' : 'text-green-600'}`}>
-              ₹{walletBalance.toFixed(2)}
-            </span>
-          </div>
 
-          {insufficientFunds && (
+          {paymentMethod === "wallet" && insufficientFunds && (
             <Alert variant="destructive" className="mt-2">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Insufficient funds. Please add at least ₹{(estimatedCost - walletBalance).toFixed(2)} to your wallet.
+                Insufficient funds. Please add at least ₹{(estimatedCost - walletBalance).toFixed(2)} to your wallet or choose Cash on Delivery.
               </AlertDescription>
             </Alert>
           )}
@@ -271,7 +301,7 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
             <Button 
               type="submit" 
               className="w-full bg-[#437358] hover:bg-[#345c46]"
-              disabled={isLoading || insufficientFunds}
+              disabled={isLoading || (paymentMethod === "wallet" && insufficientFunds)}
             >
               {isLoading ? "Processing..." : "Place Order"}
             </Button>

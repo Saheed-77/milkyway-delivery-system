@@ -65,20 +65,16 @@ export const MilkCollection = () => {
       let stockId = 1;
       
       if (stockData && stockData.length > 0) {
-        const stockItem = stockData[0] as unknown as MilkStock;
+        const stockItem = stockData[0] as MilkStock;
         currentStock = stockItem.total_stock ?? 0;
       }
 
       // Update the milk stock with the new total
       const newTotal = currentStock + parseFloat(quantity);
       
-      const updateData = {
-        total_stock: newTotal
-      };
-      
       const { error: updateError } = await supabase
         .from('milk_stock')
-        .update(updateData)
+        .update({ total_stock: newTotal })
         .eq('id', stockId);
 
       if (updateError) throw updateError;
