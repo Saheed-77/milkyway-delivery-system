@@ -6,15 +6,36 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Repeat, Plus } from "lucide-react";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const SubscriptionsList = () => {
   const [subscriptions, setSubscriptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [newSubscription, setNewSubscription] = useState({
+    productId: "",
+    quantity: "1",
+    frequency: "daily"
+  });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchSubscriptions();
+    fetchProducts();
   }, []);
 
   const fetchSubscriptions = async () => {
@@ -50,6 +71,23 @@ export const SubscriptionsList = () => {
     }
   };
 
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setProducts(data || []);
+      if (data && data.length > 0) {
+        setNewSubscription(prev => ({ ...prev, productId: data[0].id }));
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    }
+  };
+
   const cancelSubscription = async (subscriptionId) => {
     setIsCancelling(true);
     try {
@@ -76,6 +114,58 @@ export const SubscriptionsList = () => {
       });
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  const createSubscription = async () => {
+    setIsCreating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("You must be logged in to create a subscription");
+      }
+
+      // Get the product for price information
+      const { data: productData, error: productError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", newSubscription.productId)
+        .single();
+
+      if (productError) throw productError;
+      
+      // Calculate next delivery date (tomorrow)
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const { error } = await supabase.from("subscriptions").insert({
+        customer_id: session.user.id,
+        product_id: newSubscription.productId,
+        quantity: parseInt(newSubscription.quantity),
+        frequency: newSubscription.frequency,
+        next_delivery: tomorrow.toISOString(),
+        status: "active"
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Subscription Created",
+        description: "Your new subscription has been successfully created.",
+      });
+
+      // Close dialog and refresh subscriptions
+      setIsDialogOpen(false);
+      fetchSubscriptions();
+    } catch (error) {
+      console.error("Error creating subscription:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create subscription. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -108,10 +198,77 @@ export const SubscriptionsList = () => {
           <Repeat className="h-5 w-5 mr-2 text-[#437358]" />
           Active Subscriptions
         </CardTitle>
-        <Button variant="outline" size="sm" className="flex items-center gap-1">
-          <Plus className="h-4 w-4" />
-          <span>New</span>
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="flex items-center gap-1">
+              <Plus className="h-4 w-4" />
+              <span>New</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Subscription</DialogTitle>
+              <DialogDescription>
+                Set up a recurring milk delivery subscription.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="product">Product</Label>
+                <Select 
+                  value={newSubscription.productId} 
+                  onValueChange={(value) => setNewSubscription(prev => ({ ...prev, productId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name || product.milk_type} Milk - ₹{product.price}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={newSubscription.quantity}
+                  onChange={(e) => setNewSubscription(prev => ({ ...prev, quantity: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="frequency">Delivery Frequency</Label>
+                <Select 
+                  value={newSubscription.frequency} 
+                  onValueChange={(value) => setNewSubscription(prev => ({ ...prev, frequency: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                onClick={createSubscription} 
+                disabled={isCreating || !newSubscription.productId}
+                className="bg-[#437358] hover:bg-[#345c46]"
+              >
+                {isCreating ? "Creating..." : "Create Subscription"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -124,6 +281,7 @@ export const SubscriptionsList = () => {
               variant="outline" 
               size="sm" 
               className="mt-4"
+              onClick={() => setIsDialogOpen(true)}
             >
               Create a subscription
             </Button>

@@ -154,7 +154,6 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
           customer_id: session.user.id,
           total_amount: totalAmount,
           status: "pending",
-          // Add a flag to indicate payment method
           payment_method: paymentMethod
         })
         .select()
@@ -212,6 +211,7 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
 
       // Reset form
       setQuantity("1");
+      setMilkType("cow");
       
       // Notify parent that order was completed to refresh order history
       if (onOrderComplete) {
