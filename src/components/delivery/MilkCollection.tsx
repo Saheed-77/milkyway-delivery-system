@@ -1,153 +1,124 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Milk, Package, CheckCircle, XCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Milk } from "lucide-react";
 
-type MilkStock = {
-  id?: number;
-  total_stock: number | null;
-};
-
-export const MilkCollection = () => {
-  const [quantity, setQuantity] = useState("");
-  const [milkType, setMilkType] = useState("cow");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export const MilkCollection = ({ refreshTrigger = 0 }) => {
+  const [collections, setCollections] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!quantity || parseFloat(quantity) <= 0) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid quantity",
-        variant: "destructive",
-      });
-      return;
-    }
+  useEffect(() => {
+    fetchCollections();
+  }, [refreshTrigger]);
 
+  const fetchCollections = async () => {
     try {
-      setIsSubmitting(true);
-      
-      // Get the current session
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        throw new Error("You must be logged in to add milk collection");
-      }
+      const { data, error } = await supabase
+        .from("milk_collections")
+        .select(`
+          *,
+          farmer:farmer_id (name, phone_number),
+          delivery:delivery_id (name)
+        `)
+        .order("created_at", { ascending: false });
 
-      // Create a milk contribution record
-      const { error: contributionError } = await supabase
-        .from('milk_contributions')
-        .insert({
-          farmer_id: session.user.id,
-          quantity: parseFloat(quantity),
-          milk_type: milkType,
-        });
-
-      if (contributionError) throw contributionError;
-
-      // Get milk stock data
-      const { data: stockData, error: stockReadError } = await supabase
-        .from('milk_stock')
-        .select('*');
-
-      if (stockReadError) throw stockReadError;
-
-      // Safely handle the data with proper type checking
-      let currentStock = 0;
-      let stockId = 1;
-      
-      if (stockData && stockData.length > 0) {
-        const stockItem = stockData[0] as MilkStock;
-        currentStock = stockItem.total_stock ?? 0;
-      }
-
-      // Update the milk stock with the new total
-      const newTotal = currentStock + parseFloat(quantity);
-      
-      const { error: updateError } = await supabase
-        .from('milk_stock')
-        .update({ total_stock: newTotal })
-        .eq('id', stockId);
-
-      if (updateError) throw updateError;
-
-      // Show success message and reset form
-      toast({
-        title: "Success",
-        description: `Added ${quantity} liters of ${milkType} milk`,
-      });
-      setQuantity("");
-      
+      if (error) throw error;
+      setCollections(data || []);
     } catch (error) {
-      console.error("Error submitting milk collection:", error);
+      console.error("Error fetching milk collections:", error);
       toast({
         title: "Error",
-        description: "Failed to submit milk collection",
+        description: "Failed to load milk collections. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "pending":
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+          <Package className="h-3 w-3 mr-1" /> Pending
+        </Badge>;
+      case "collected":
+        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+          <CheckCircle className="h-3 w-3 mr-1" /> Collected
+        </Badge>;
+      case "cancelled":
+        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+          <XCircle className="h-3 w-3 mr-1" /> Cancelled
+        </Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return `${date.toLocaleDateString()} (${formatDistanceToNow(date, { addSuffix: true })})`;
+    } catch (error) {
+      return dateString;
     }
   };
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Milk className="h-5 w-5 text-[#437358]" />
-          Add Milk Collection
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>
+          <div className="flex items-center">
+            <Milk className="h-5 w-5 mr-2 text-[#437358]" />
+            Milk Collection
+          </div>
         </CardTitle>
+        <Button variant="outline" size="sm">
+          Add Collection
+        </Button>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="milkType">Milk Type</Label>
-            <Select 
-              value={milkType} 
-              onValueChange={setMilkType}
-            >
-              <SelectTrigger id="milkType">
-                <SelectValue placeholder="Select milk type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cow">Cow Milk</SelectItem>
-                <SelectItem value="buffalo">Buffalo Milk</SelectItem>
-                <SelectItem value="goat">Goat Milk</SelectItem>
-              </SelectContent>
-            </Select>
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading milk collections...</p>
+        ) : collections.length === 0 ? (
+          <div className="text-center py-8">
+            <Milk className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
+            <p className="mt-2 text-muted-foreground">No milk collections found</p>
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="quantity">Quantity (Liters)</Label>
-            <Input
-              id="quantity"
-              type="number"
-              step="0.1"
-              min="0.1"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              required
-            />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Collection Date</TableHead>
+                  <TableHead>Farmer</TableHead>
+                  <TableHead>Quantity (L)</TableHead>
+                  <TableHead>Delivery Person</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {collections.map((collection) => (
+                  <TableRow key={collection.id}>
+                    <TableCell className="font-medium">
+                      {formatDate(collection.created_at)}
+                    </TableCell>
+                    <TableCell>{collection.farmer?.name}</TableCell>
+                    <TableCell>{collection.quantity}</TableCell>
+                    <TableCell>{collection.delivery?.name}</TableCell>
+                    <TableCell>{getStatusBadge(collection.status)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-          
-          <CardFooter className="px-0 pt-2">
-            <Button 
-              type="submit" 
-              className="w-full bg-[#437358] hover:bg-[#345c46]"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Submitting..." : "Add Collection"}
-            </Button>
-          </CardFooter>
-        </form>
+        )}
       </CardContent>
     </Card>
   );

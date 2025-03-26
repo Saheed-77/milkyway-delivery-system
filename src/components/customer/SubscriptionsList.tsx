@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +10,7 @@ import { format } from "date-fns";
 export const SubscriptionsList = () => {
   const [subscriptions, setSubscriptions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCancelling, setIsCancelling] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -45,6 +47,35 @@ export const SubscriptionsList = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const cancelSubscription = async (subscriptionId) => {
+    setIsCancelling(true);
+    try {
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({ status: "cancelled" })
+        .eq("id", subscriptionId);
+
+      if (error) throw error;
+
+      // Update the subscriptions list by removing the cancelled subscription
+      setSubscriptions(subscriptions.filter(sub => sub.id !== subscriptionId));
+
+      toast({
+        title: "Subscription cancelled",
+        description: "Your subscription has been successfully cancelled.",
+      });
+    } catch (error) {
+      console.error("Error cancelling subscription:", error);
+      toast({
+        title: "Error",
+        description: "Failed to cancel subscription. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -120,6 +151,8 @@ export const SubscriptionsList = () => {
                     variant="outline" 
                     size="sm"
                     className="text-red-600 border-red-200 hover:bg-red-50"
+                    disabled={isCancelling}
+                    onClick={() => cancelSubscription(subscription.id)}
                   >
                     Cancel
                   </Button>

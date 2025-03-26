@@ -111,9 +111,6 @@ const CustomerDashboard = () => {
                 userType="customer" 
                 activeSection={activeSection} 
                 onSectionChange={setActiveSection} 
-                customSections={[
-                  { id: "history", label: "Order History", icon: "Package" }
-                ]}
               />
             </Sidebar>
             <SidebarInset>
