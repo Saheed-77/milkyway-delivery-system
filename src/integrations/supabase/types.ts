@@ -244,6 +244,7 @@ export type Database = {
           customer_id: string
           delivery_slot: string | null
           id: string
+          payment_method: string
           qr_code: string | null
           status: string
           total_amount: number
@@ -254,6 +255,7 @@ export type Database = {
           customer_id: string
           delivery_slot?: string | null
           id?: string
+          payment_method?: string
           qr_code?: string | null
           status?: string
           total_amount: number
@@ -264,6 +266,7 @@ export type Database = {
           customer_id?: string
           delivery_slot?: string | null
           id?: string
+          payment_method?: string
           qr_code?: string | null
           status?: string
           total_amount?: number

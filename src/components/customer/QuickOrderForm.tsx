@@ -165,7 +165,7 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
       }
 
       // 6. Create order item
-      const { data: orderItemData, error: itemError } = await supabase
+      const { error: itemError } = await supabase
         .from("order_items")
         .insert({
           order_id: orderData.id,
