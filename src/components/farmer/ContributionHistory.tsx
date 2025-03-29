@@ -96,12 +96,24 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
       case 2:
         return <Badge className="bg-blue-100 text-blue-800">B (Good)</Badge>;
       case 3:
-        return <Badge className="bg-yellow-100 text-yellow-800">C (Average)</Badge>;
-      case 4:
-        return <Badge className="bg-red-100 text-red-800">D (Below Standard)</Badge>;
+        return <Badge className="bg-red-100 text-red-800">C (Below Standard)</Badge>;
       default:
         return <Badge className="bg-gray-100 text-gray-800">Unknown</Badge>;
     }
+  };
+
+  const getRejectionInfo = (contribution: MilkContribution) => {
+    if (contribution.quality_rating === 3 && contribution.quantity === 0) {
+      return (
+        <div className="mt-1">
+          <Badge variant="destructive" className="text-xs">Rejected</Badge>
+          <p className="text-xs text-red-600 mt-1">
+            This milk was rejected due to substandard quality.
+          </p>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -119,16 +131,40 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
         </TableHeader>
         <TableBody>
           {contributions.map((contribution) => (
-            <TableRow key={contribution.id}>
+            <TableRow 
+              key={contribution.id}
+              className={contribution.quality_rating === 3 ? "bg-red-50" : ""}
+            >
               <TableCell>
                 {format(new Date(contribution.contribution_date), "MMM d, yyyy")}
               </TableCell>
               <TableCell>{formatMilkType(contribution.milk_type)}</TableCell>
-              <TableCell>{contribution.quantity}</TableCell>
-              <TableCell>₹{(contribution.price / contribution.quantity).toFixed(2)}</TableCell>
-              <TableCell className="font-medium">₹{contribution.price.toFixed(2)}</TableCell>
               <TableCell>
-                {getQualityBadge(contribution.quality_rating)}
+                {contribution.quantity === 0 ? (
+                  <span className="text-red-600">Rejected</span>
+                ) : (
+                  contribution.quantity
+                )}
+              </TableCell>
+              <TableCell>
+                {contribution.quantity === 0 ? (
+                  "N/A"
+                ) : (
+                  `₹${(contribution.price / contribution.quantity).toFixed(2)}`
+                )}
+              </TableCell>
+              <TableCell className="font-medium">
+                {contribution.quantity === 0 ? (
+                  "₹0.00"
+                ) : (
+                  `₹${contribution.price.toFixed(2)}`
+                )}
+              </TableCell>
+              <TableCell>
+                <div>
+                  {getQualityBadge(contribution.quality_rating)}
+                  {getRejectionInfo(contribution)}
+                </div>
               </TableCell>
             </TableRow>
           ))}

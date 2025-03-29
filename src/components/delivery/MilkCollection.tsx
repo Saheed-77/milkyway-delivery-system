@@ -38,7 +38,8 @@ export const MilkCollection = () => {
           farmer:profiles!farmer_id (
             email,
             first_name,
-            last_name
+            last_name,
+            status
           )
         `)
         .order("contribution_date", { ascending: false });
@@ -55,6 +56,24 @@ export const MilkCollection = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getQualityLabel = (rating) => {
+    switch (rating) {
+      case 1: return "A (Excellent)";
+      case 2: return "B (Good)";
+      case 3: return "C (Below Standard)";
+      default: return "Not rated";
+    }
+  };
+
+  const getFarmerStatus = (farmer) => {
+    if (!farmer) return "Unknown";
+    
+    if (farmer.status === "rejected") {
+      return <span className="text-red-600 font-medium">Blacklisted</span>;
+    }
+    return farmer.status || "Active";
   };
 
   return (
@@ -77,6 +96,7 @@ export const MilkCollection = () => {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Farmer</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Milk Type</TableHead>
                   <TableHead>Quantity (L)</TableHead>
                   <TableHead>Quality Rating</TableHead>
@@ -85,7 +105,10 @@ export const MilkCollection = () => {
               </TableHeader>
               <TableBody>
                 {collections.map((collection) => (
-                  <TableRow key={collection.id}>
+                  <TableRow 
+                    key={collection.id}
+                    className={collection.quality_rating === 3 ? "bg-red-50" : ""}
+                  >
                     <TableCell>
                       {format(new Date(collection.contribution_date), "MMM dd, yyyy")}
                     </TableCell>
@@ -94,11 +117,20 @@ export const MilkCollection = () => {
                         ? `${collection.farmer.first_name} ${collection.farmer.last_name}`
                         : collection.farmer?.email || "Unknown"}
                     </TableCell>
+                    <TableCell>
+                      {getFarmerStatus(collection.farmer)}
+                    </TableCell>
                     <TableCell className="capitalize">{collection.milk_type}</TableCell>
-                    <TableCell>{collection.quantity}</TableCell>
+                    <TableCell>
+                      {collection.quantity === 0 ? (
+                        <span className="text-red-600">Rejected</span>
+                      ) : (
+                        collection.quantity
+                      )}
+                    </TableCell>
                     <TableCell>
                       {collection.quality_rating 
-                        ? `${collection.quality_rating}/5` 
+                        ? getQualityLabel(collection.quality_rating)
                         : "Not rated"}
                     </TableCell>
                     <TableCell className="text-right">
