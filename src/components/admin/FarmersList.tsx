@@ -25,6 +25,7 @@ interface FarmersListProps {
   showActions?: boolean;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
+  highlightStatus?: string;
 }
 
 export const FarmersList = ({ 
@@ -33,17 +34,18 @@ export const FarmersList = ({
   farmers, 
   showActions = false,
   onApprove,
-  onReject 
+  onReject,
+  highlightStatus
 }: FarmersListProps) => {
   return (
-    <Card>
+    <Card className={highlightStatus === 'blacklisted' ? "border-red-300 bg-red-50" : ""}>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         {farmers.length === 0 ? (
-          <p className="text-gray-500">{showActions ? "No pending registrations" : "No approved farmers"}</p>
+          <p className="text-gray-500">{showActions ? "No pending registrations" : highlightStatus === 'blacklisted' ? "No blacklisted farmers" : "No approved farmers"}</p>
         ) : (
           <div className="space-y-4">
             {farmers.map((farmer) => (
@@ -53,6 +55,7 @@ export const FarmersList = ({
                 showActions={showActions}
                 onApprove={onApprove}
                 onReject={onReject}
+                highlightStatus={highlightStatus}
               />
             ))}
           </div>

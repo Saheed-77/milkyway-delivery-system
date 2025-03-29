@@ -1,4 +1,3 @@
-
 import {
   Card,
   CardContent,
@@ -44,6 +43,9 @@ export const DashboardContent = ({
   onApprove,
   onReject,
 }: DashboardContentProps) => {
+  const blacklistedFarmers = approvedFarmers.filter(farmer => farmer.status === 'rejected');
+  const activeFarmers = approvedFarmers.filter(farmer => farmer.status === 'approved');
+
   switch (activeSection) {
     case "dashboard":
       return (
@@ -131,10 +133,23 @@ export const DashboardContent = ({
               <FarmersList
                 title="Approved Farmers"
                 description="Active farmers in the system"
-                farmers={approvedFarmers}
+                farmers={activeFarmers}
                 showActions={false}
               />
             </div>
+
+            {/* Blacklisted Farmers */}
+            {blacklistedFarmers.length > 0 && (
+              <div>
+                <FarmersList
+                  title="Blacklisted Farmers"
+                  description="Farmers who have been blacklisted"
+                  farmers={blacklistedFarmers}
+                  showActions={false}
+                  highlightStatus="blacklisted"
+                />
+              </div>
+            )}
           </TabsContent>
           
           <TabsContent value="registration">

@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Check, X } from "lucide-react";
+import { Check, X, AlertTriangle } from "lucide-react";
 
 interface FarmerProfile {
   id: string;
@@ -17,12 +17,26 @@ interface FarmerCardProps {
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   showActions?: boolean;
+  highlightStatus?: string;
 }
 
-export const FarmerCard = ({ farmer, onApprove, onReject, showActions = false }: FarmerCardProps) => {
+export const FarmerCard = ({ farmer, onApprove, onReject, showActions = false, highlightStatus }: FarmerCardProps) => {
+  const isBlacklisted = farmer.status === 'rejected' || highlightStatus === 'blacklisted';
+
   return (
-    <div key={farmer.id} className="border p-4 rounded-lg">
-      <p className="font-medium">{farmer.email}</p>
+    <div 
+      key={farmer.id} 
+      className={`border p-4 rounded-lg ${isBlacklisted ? "border-red-300 bg-red-50" : ""}`}
+    >
+      <div className="flex justify-between items-start">
+        <p className="font-medium">{farmer.email}</p>
+        {isBlacklisted && (
+          <span className="inline-flex items-center bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded-full">
+            <AlertTriangle className="w-3 h-3 mr-1" />
+            Blacklisted
+          </span>
+        )}
+      </div>
       {farmer.farm_name && (
         <p className="text-sm text-gray-600">Farm: {farmer.farm_name}</p>
       )}
@@ -35,7 +49,7 @@ export const FarmerCard = ({ farmer, onApprove, onReject, showActions = false }:
         </p>
       )}
       <p className="text-sm text-gray-500">
-        {showActions ? "Registered" : "Approved"}: {new Date(farmer.created_at).toLocaleDateString()}
+        {isBlacklisted ? "Blacklisted" : showActions ? "Registered" : "Approved"}: {new Date(farmer.created_at).toLocaleDateString()}
       </p>
       {showActions && onApprove && onReject && (
         <div className="mt-2 flex gap-2">
