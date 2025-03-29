@@ -6,9 +6,36 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Clock, X, FileText } from "lucide-react";
 import { format } from "date-fns";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+interface FarmerPayment {
+  id: string;
+  amount: number;
+  status: string;
+  payment_date: string;
+  created_at: string;
+  farmer: {
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
+  contributions?: {
+    id: string;
+    quantity: number;
+    milk_type: string;
+    contribution_date: string;
+  }[];
+}
 
 export const FarmerPaymentApproval = () => {
-  const [payments, setPayments] = useState([]);
+  const [payments, setPayments] = useState<FarmerPayment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
@@ -19,7 +46,8 @@ export const FarmerPaymentApproval = () => {
 
   const fetchPayments = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch payments with farmer profiles
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from("farmer_payments")
         .select(`
           *,
@@ -31,8 +59,26 @@ export const FarmerPaymentApproval = () => {
         `)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setPayments(data || []);
+      if (paymentsError) throw paymentsError;
+      
+      // For each payment, fetch the linked contributions
+      const paymentsWithContributions = await Promise.all(
+        (paymentsData || []).map(async (payment) => {
+          const { data: contributions, error: contribError } = await supabase
+            .from("milk_contributions")
+            .select("id, quantity, milk_type, contribution_date")
+            .eq("payment_id", payment.id);
+          
+          if (contribError) {
+            console.error("Error fetching contributions for payment:", contribError);
+            return { ...payment, contributions: [] };
+          }
+          
+          return { ...payment, contributions: contributions || [] };
+        })
+      );
+
+      setPayments(paymentsWithContributions || []);
     } catch (error) {
       console.error("Error fetching payments:", error);
       toast({
@@ -112,56 +158,76 @@ export const FarmerPaymentApproval = () => {
             <p className="mt-2 text-muted-foreground">No payments to approve</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {payments.map((payment) => (
-              <div 
-                key={payment.id} 
-                className="p-3 border rounded-lg flex justify-between items-center"
-              >
-                <div>
-                  <h4 className="font-medium">
-                    {payment.farmer?.first_name || "Unnamed"} {payment.farmer?.last_name || "Farmer"}
-                  </h4>
-                  <p className="text-sm">
-                    {payment.farmer?.email || "No email"}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-sm font-medium">
-                      {formatCurrency(payment.amount)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
+          <div className="space-y-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Farmer</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Details</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payments.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">
+                          {payment.farmer?.first_name || ""} {payment.farmer?.last_name || ""}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{payment.farmer?.email || ""}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium">
+                        {formatCurrency(payment.amount)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
                       {format(new Date(payment.payment_date), "MMM dd, yyyy")}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-gray-100 rounded-full">
-                      {getStatusIcon(payment.status)}
-                      <span className="capitalize">{payment.status}</span>
-                    </span>
-                  </div>
-                </div>
-                {payment.status === "pending" && (
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700"
-                      disabled={isProcessing}
-                      onClick={() => updatePaymentStatus(payment.id, "approved")}
-                    >
-                      Approve
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                      disabled={isProcessing}
-                      onClick={() => updatePaymentStatus(payment.id, "rejected")}
-                    >
-                      Reject
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
+                    </TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-gray-100 rounded-full">
+                        {getStatusIcon(payment.status)}
+                        <span className="capitalize">{payment.status}</span>
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">
+                        {payment.contributions?.length || 0} contributions
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {payment.status === "pending" && (
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700"
+                            disabled={isProcessing}
+                            onClick={() => updatePaymentStatus(payment.id, "approved")}
+                          >
+                            Approve
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                            disabled={isProcessing}
+                            onClick={() => updatePaymentStatus(payment.id, "rejected")}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </CardContent>
