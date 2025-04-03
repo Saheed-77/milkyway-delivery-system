@@ -41,20 +41,52 @@ export const MilkContributionForm = ({ farmerId }: MilkContributionFormProps) =>
     setIsSubmitting(true);
 
     try {
-      // The price will be calculated automatically by the database trigger
-      const { error } = await supabase.from("milk_contributions").insert({
-        farmer_id: farmerId,
-        quantity,
-        milk_type: milkType,
-        contribution_date: new Date().toISOString(),
-      });
+      // Step 1: Add the milk contribution
+      const { data: contributionData, error: contributionError } = await supabase
+        .from("milk_contributions")
+        .insert({
+          farmer_id: farmerId,
+          quantity,
+          milk_type: milkType,
+          contribution_date: new Date().toISOString(),
+        })
+        .select('id, price')
+        .single();
 
-      if (error) throw error;
+      if (contributionError) throw contributionError;
 
-      toast({
-        title: "Contribution recorded",
-        description: `Successfully added ${quantity} liters of ${milkType} milk.`,
-      });
+      // Step 2: Create a pending payment if there's a price calculated
+      if (contributionData && contributionData.price) {
+        // Create a pending payment entry
+        const { error: paymentError } = await supabase
+          .from("farmer_payments")
+          .insert({
+            farmer_id: farmerId,
+            amount: contributionData.price,
+            payment_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+            status: 'pending',
+            notes: `Payment for milk contribution on ${new Date().toLocaleDateString()}`,
+          });
+
+        if (paymentError) {
+          console.error("Error creating payment record:", paymentError);
+          // We don't throw here since the contribution was successful
+          toast({
+            title: "Contribution recorded",
+            description: `Successfully added ${quantity} liters of ${milkType} milk, but there was an issue creating the payment record.`,
+          });
+        } else {
+          toast({
+            title: "Contribution recorded",
+            description: `Successfully added ${quantity} liters of ${milkType} milk and created a pending payment.`,
+          });
+        }
+      } else {
+        toast({
+          title: "Contribution recorded",
+          description: `Successfully added ${quantity} liters of ${milkType} milk.`,
+        });
+      }
 
       // Reset form
       setQuantity(0);

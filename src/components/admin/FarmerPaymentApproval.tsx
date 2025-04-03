@@ -61,20 +61,38 @@ export const FarmerPaymentApproval = () => {
 
       if (paymentsError) throw paymentsError;
       
-      // For each payment, fetch the linked contributions
+      // For each payment, fetch the linked contributions or unpaid contributions
       const paymentsWithContributions = await Promise.all(
         (paymentsData || []).map(async (payment) => {
-          const { data: contributions, error: contribError } = await supabase
+          // First check for already linked contributions
+          const { data: linkedContributions, error: linkedError } = await supabase
             .from("milk_contributions")
             .select("id, quantity, milk_type, contribution_date")
             .eq("payment_id", payment.id);
           
-          if (contribError) {
-            console.error("Error fetching contributions for payment:", contribError);
-            return { ...payment, contributions: [] };
+          if (linkedError) {
+            console.error("Error fetching linked contributions:", linkedError);
           }
           
-          return { ...payment, contributions: contributions || [] };
+          // If we don't have linked contributions, try to find unlinked ones
+          // that could be associated with this payment
+          if (!linkedContributions || linkedContributions.length === 0) {
+            const { data: unlinkedContributions, error: unlinkedError } = await supabase
+              .from("milk_contributions")
+              .select("id, quantity, milk_type, contribution_date")
+              .eq("farmer_id", payment.farmer_id)
+              .is("payment_id", null)
+              .order("contribution_date", { ascending: true });
+            
+            if (unlinkedError) {
+              console.error("Error fetching unlinked contributions:", unlinkedError);
+              return { ...payment, contributions: [] };
+            }
+            
+            return { ...payment, contributions: unlinkedContributions || [] };
+          }
+          
+          return { ...payment, contributions: linkedContributions || [] };
         })
       );
 
@@ -94,12 +112,29 @@ export const FarmerPaymentApproval = () => {
   const updatePaymentStatus = async (paymentId, status) => {
     setIsProcessing(true);
     try {
+      const payment = payments.find(p => p.id === paymentId);
+      
+      // First update the payment status
       const { error } = await supabase
         .from("farmer_payments")
         .update({ status })
         .eq("id", paymentId);
 
       if (error) throw error;
+      
+      // If approved, link the contributions to this payment
+      if (status === "approved" && payment?.contributions?.length > 0) {
+        for (const contribution of payment.contributions) {
+          const { error: updateError } = await supabase
+            .from("milk_contributions")
+            .update({ payment_id: paymentId })
+            .eq("id", contribution.id);
+          
+          if (updateError) {
+            console.error(`Error linking contribution ${contribution.id}:`, updateError);
+          }
+        }
+      }
 
       // Update the payments list
       setPayments(payments.map(payment => 
@@ -110,6 +145,10 @@ export const FarmerPaymentApproval = () => {
         title: status === "approved" ? "Payment Approved" : "Payment Rejected",
         description: `The payment has been ${status}.`,
       });
+      
+      // Refresh the payments data
+      fetchPayments();
+      
     } catch (error) {
       console.error("Error updating payment status:", error);
       toast({
