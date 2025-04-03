@@ -86,22 +86,21 @@ export const MilkCollectionForm = () => {
           .from("milk_contributions")
           .select("contribution_date, quality_rating")
           .eq("farmer_id", farmerUuid)
-          .order("contribution_date", { ascending: false })
-          .limit(3);
+          .order("contribution_date", { ascending: false });
           
         if (submissionsError) {
           console.error("Error checking recent submissions:", submissionsError);
           throw new Error("Failed to check farmer submission history");
         }
         
-        // Count how many consecutive substandard submissions (including current one)
+        // Count how many substandard submissions (including current one)
         let consecutiveOffenses = 1; // Start with 1 for current submission
         if (recentSubmissions && recentSubmissions.length > 0) {
           for (const submission of recentSubmissions) {
             if (submission.quality_rating === 3) {
               consecutiveOffenses++;
             } else {
-              break; // Stop counting if we find a non-substandard submission
+              continue; // Stop counting if we find a non-substandard submission
             }
           }
         }
