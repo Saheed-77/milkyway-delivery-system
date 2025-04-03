@@ -55,36 +55,49 @@ export const MilkContributionForm = ({ farmerId }: MilkContributionFormProps) =>
 
       if (contributionError) throw contributionError;
 
-      // Step 2: Create a pending payment if there's a price calculated
-      if (contributionData && contributionData.price) {
-        // Create a pending payment entry
-        const { error: paymentError } = await supabase
-          .from("farmer_payments")
-          .insert({
-            farmer_id: farmerId,
-            amount: contributionData.price,
-            payment_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
-            status: 'pending',
-            notes: `Payment for milk contribution on ${new Date().toLocaleDateString()}`,
-          });
+      console.log("Contribution created:", contributionData);
+      
+      // Step 2: Create a pending payment record, regardless of price
+      const paymentAmount = contributionData?.price || 0;
+      const { data: paymentData, error: paymentError } = await supabase
+        .from("farmer_payments")
+        .insert({
+          farmer_id: farmerId,
+          amount: paymentAmount,
+          payment_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+          status: 'pending',
+          notes: `Payment for milk contribution on ${new Date().toLocaleDateString()}`,
+        })
+        .select('id')
+        .single();
 
-        if (paymentError) {
-          console.error("Error creating payment record:", paymentError);
-          // We don't throw here since the contribution was successful
-          toast({
-            title: "Contribution recorded",
-            description: `Successfully added ${quantity} liters of ${milkType} milk, but there was an issue creating the payment record.`,
-          });
-        } else {
-          toast({
-            title: "Contribution recorded",
-            description: `Successfully added ${quantity} liters of ${milkType} milk and created a pending payment.`,
-          });
-        }
-      } else {
+      if (paymentError) {
+        console.error("Error creating payment record:", paymentError);
         toast({
           title: "Contribution recorded",
-          description: `Successfully added ${quantity} liters of ${milkType} milk.`,
+          description: `Successfully added ${quantity} liters of ${milkType} milk, but there was an issue creating the payment record.`,
+          variant: "destructive",
+        });
+      } else {
+        console.log("Payment created:", paymentData);
+        
+        // Step 3: Update the contribution with the payment_id
+        if (paymentData?.id) {
+          const { error: updateError } = await supabase
+            .from("milk_contributions")
+            .update({ payment_id: paymentData.id })
+            .eq("id", contributionData.id);
+            
+          if (updateError) {
+            console.error("Error linking contribution to payment:", updateError);
+          } else {
+            console.log("Contribution linked to payment successfully");
+          }
+        }
+        
+        toast({
+          title: "Contribution recorded",
+          description: `Successfully added ${quantity} liters of ${milkType} milk and created a pending payment.`,
         });
       }
 
