@@ -84,7 +84,7 @@ export const MilkPricingForm = () => {
             .from("products")
             .update({ price: pricing.price_per_liter })
             .eq("milk_type", pricing.milk_type);
-          
+
           if (error) {
             console.error("Error updating product prices:", error);
             toast({

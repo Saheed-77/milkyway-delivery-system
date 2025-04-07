@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -198,6 +197,31 @@ export const MilkCollectionForm = () => {
       if (contributionError) {
         console.error("Contribution error:", contributionError);
         throw contributionError;
+      }
+
+      // Fetch the current stock quantity
+      const { data: productData, error: fetchError } = await supabase
+        .from("products")
+        .select("stock_quantity")
+        .eq("milk_type", milkType)
+        .single();
+
+      if (fetchError) {
+        console.error("Error fetching product stock quantity:", fetchError);
+        throw fetchError;
+      }
+
+      // Update the stock quantity
+      const newStockQuantity = (productData?.stock_quantity || 0) + Number(quantity);
+
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({ stock_quantity: newStockQuantity })
+        .eq("milk_type", milkType);
+
+      if (updateError) {
+        console.error("Error updating product stock quantity:", updateError);
+        throw updateError;
       }
 
       toast({
