@@ -88,6 +88,7 @@ export const MilkCollectionForm = () => {
           .eq("farmer_id", farmerUuid)
           .order("contribution_date", { ascending: false });
           
+          
         if (submissionsError) {
           console.error("Error checking recent submissions:", submissionsError);
           throw new Error("Failed to check farmer submission history");
