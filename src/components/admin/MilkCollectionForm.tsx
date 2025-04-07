@@ -88,7 +88,7 @@ export const MilkCollectionForm = () => {
           .eq("farmer_id", farmerUuid)
           .order("contribution_date", { ascending: false });
           
-          
+
         if (submissionsError) {
           console.error("Error checking recent submissions:", submissionsError);
           throw new Error("Failed to check farmer submission history");
@@ -154,8 +154,7 @@ export const MilkCollectionForm = () => {
           .from("milk_contributions")
           .insert({
             farmer_id: farmerUuid,
-            // Fix #2: Remove duplicate quantity property
-            quantity: 0, // Setting quantity to 0 effectively means it won't add to inventory
+            quantity: 0, // Setting quantity to 0 it won't add to inventory
             quality_rating: Number(qualityRating),
             milk_type: milkType
           });
@@ -168,7 +167,6 @@ export const MilkCollectionForm = () => {
         toast({
           title: "Submission Recorded",
           description: "Substandard milk was not added to inventory, but the submission was recorded.",
-          // Fix #3: Change "warning" to "default" as "warning" is not a valid variant
           variant: "default",
         });
         
