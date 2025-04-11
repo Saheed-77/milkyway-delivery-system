@@ -90,21 +90,7 @@ export const DeliveryMilkCollectionForm = () => {
     try {
       setIsSubmitting(true);
 
-      // 1. Insert the milk contribution
-      const { data: contributionData, error: contributionError } = await supabase
-        .from("milk_contributions")
-        .insert({
-          farmer_id: selectedFarmer,
-          milk_type: selectedMilkType,
-          quantity: quantity,
-          quality_rating: qualityRating,
-          contribution_date: new Date().toISOString().split("T")[0],
-        })
-        .select();
-
-      if (contributionError) throw contributionError;
-
-      // 2. Get milk price for the selected milk type
+      // 1. Get milk price for the selected milk type
       const { data: priceData, error: priceError } = await supabase
         .from("milk_pricing")
         .select("price_per_liter")
@@ -116,7 +102,7 @@ export const DeliveryMilkCollectionForm = () => {
       const milkPrice = priceData.price_per_liter;
       const totalAmount = quantity * milkPrice;
       
-      // 3. Create payment entry in the farmer_payments table
+      // 2. Create payment entry in the farmer_payments table
       const { data: paymentData, error: paymentError } = await supabase
         .from("farmer_payments")
         .insert({
@@ -128,21 +114,26 @@ export const DeliveryMilkCollectionForm = () => {
         .select();
       
       if (paymentError) throw paymentError;
-      
-      // 4. Link the payment ID to the milk contribution
-      if (contributionData && contributionData[0] && paymentData && paymentData[0]) {
-        const { error: updateError } = await supabase
-          .from("milk_contributions")
-          .update({ payment_id: paymentData[0].id })
-          .eq("id", contributionData[0].id);
-        
-        if (updateError) console.error("Error linking payment to contribution:", updateError);
-      }
+
+      // 3. Insert the milk contribution with payment ID reference
+      const { data: contributionData, error: contributionError } = await supabase
+        .from("milk_contributions")
+        .insert({
+          farmer_id: selectedFarmer,
+          milk_type: selectedMilkType,
+          quantity: quantity,
+          quality_rating: qualityRating,
+          contribution_date: new Date().toISOString().split("T")[0],
+          payment_id: paymentData?.[0]?.id // Link to the payment
+        })
+        .select();
+
+      if (contributionError) throw contributionError;
 
       // Update milk stock - Fix the TypeScript error by properly typing the parameter
       const { error: stockError } = await supabase
         .rpc("update_milk_stock", { 
-          add_quantity: Number(quantity) // Convert to number explicitly to fix the type issue
+          add_quantity: Number(quantity) // Explicit conversion to number
         });
 
       if (stockError) {
