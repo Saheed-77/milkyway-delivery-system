@@ -139,10 +139,10 @@ export const DeliveryMilkCollectionForm = () => {
         if (updateError) console.error("Error linking payment to contribution:", updateError);
       }
 
-      // Update milk stock
+      // Update milk stock - Fix the TypeScript error by properly typing the parameter
       const { error: stockError } = await supabase
         .rpc("update_milk_stock", { 
-          add_quantity: quantity 
+          add_quantity: quantity as unknown as number  // Fix: Properly cast to the expected type
         });
 
       if (stockError) {
