@@ -8,12 +8,13 @@ import {
 import { FarmersList } from "./FarmersList";
 import { FarmerRegistrationForm } from "./FarmerRegistrationForm";
 import { MilkCollectionForm } from "./MilkCollectionForm";
+import { MilkCollectionsList } from "@/components/shared/MilkCollectionsList";
 import { CustomerOrders } from "./CustomerOrders";
 import { MilkPricingForm } from "./MilkPricingForm";
 import { DeliverySummary } from "../delivery/DeliverySummary";
 import { Reports } from "./Reports";
 import { FarmerPaymentApproval } from "./FarmerPaymentApproval";
-import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus, BarChart3, CreditCard } from "lucide-react";
+import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus, BarChart3, CreditCard, List, PlusCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface FarmerProfile {
@@ -179,8 +180,35 @@ export const DashboardContent = ({
               <div className="text-3xl font-bold">{totalMilkStock} L</div>
             </CardContent>
           </Card>
-          <MilkCollectionForm />
-          <MilkPricingForm />
+          
+          <Tabs defaultValue="collect">
+            <TabsList className="mb-6">
+              <TabsTrigger value="collect" className="flex items-center gap-2">
+                <PlusCircle className="w-4 h-4" />
+                Collect Milk
+              </TabsTrigger>
+              <TabsTrigger value="list" className="flex items-center gap-2">
+                <List className="w-4 h-4" />
+                Collections List
+              </TabsTrigger>
+              <TabsTrigger value="pricing" className="flex items-center gap-2">
+                <Milk className="w-4 h-4" />
+                Milk Pricing
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="collect">
+              <MilkCollectionForm />
+            </TabsContent>
+            
+            <TabsContent value="list">
+              <MilkCollectionsList />
+            </TabsContent>
+            
+            <TabsContent value="pricing">
+              <MilkPricingForm />
+            </TabsContent>
+          </Tabs>
         </div>
       );
     case "orders":
