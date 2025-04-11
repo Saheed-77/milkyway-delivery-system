@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Package, Truck, MapPin, CheckCircle } from "lucide-react";
+import { Package, Truck, MapPin, CreditCard, CheckCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 export const PendingDeliveries = ({ onStatusChange }) => {
@@ -42,7 +41,6 @@ export const PendingDeliveries = ({ onStatusChange }) => {
         throw new Error("Not authenticated");
       }
 
-      // Fetch pending orders with their items and product details
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -51,6 +49,7 @@ export const PendingDeliveries = ({ onStatusChange }) => {
           total_amount,
           status,
           delivery_slot,
+          payment_method,
           customer_id,
           order_items (
             id,
@@ -63,6 +62,7 @@ export const PendingDeliveries = ({ onStatusChange }) => {
             )
           ),
           customer:profiles (
+            id,
             first_name,
             last_name,
             email
@@ -72,6 +72,35 @@ export const PendingDeliveries = ({ onStatusChange }) => {
 
       if (error) {
         throw error;
+      }
+
+      if (data && data.length > 0) {
+        const customerToOrderMap = new Map();
+        data.forEach(order => {
+          if (!customerToOrderMap.has(order.customer_id)) {
+            customerToOrderMap.set(order.customer_id, []);
+          }
+          customerToOrderMap.get(order.customer_id).push(order);
+        });
+
+        const { data: addressesData, error: addressesError } = await supabase
+          .from("customer_addresses")
+          .select("customer_id, address_line1, address_line2, city, state, postal_code")
+          .in("customer_id", [...customerToOrderMap.keys()]);
+
+        if (addressesError) {
+          console.error("Error fetching customer addresses:", addressesError);
+        } else if (addressesData) {
+          const customerAddresses = new Map();
+          addressesData.forEach(address => {
+            customerAddresses.set(address.customer_id, address);
+          });
+
+          data.forEach(order => {
+            const address = customerAddresses.get(order.customer_id);
+            order.customer_address = address || null;
+          });
+        }
       }
 
       setPendingDeliveries(data || []);
@@ -92,8 +121,6 @@ export const PendingDeliveries = ({ onStatusChange }) => {
       setIsUpdating(true);
       setUpdatingOrderId(orderId);
       
-      // Update the status to "completed" instead of "delivered"
-      // This is to comply with the database check constraint
       const { error } = await supabase
         .from("orders")
         .update({ status: "completed" })
@@ -104,10 +131,8 @@ export const PendingDeliveries = ({ onStatusChange }) => {
         throw error;
       }
 
-      // After successful update, refresh the data
       await fetchPendingDeliveries();
       
-      // Notify parent component about the status change to refresh dashboard
       if (onStatusChange) {
         onStatusChange();
       }
@@ -138,6 +163,34 @@ export const PendingDeliveries = ({ onStatusChange }) => {
     }
   };
 
+  const formatAddress = (customer, address) => {
+    if (!address) {
+      return "Address not available";
+    }
+    
+    const parts = [];
+    if (address.address_line1) parts.push(address.address_line1);
+    if (address.address_line2) parts.push(address.address_line2);
+    if (address.city) parts.push(address.city);
+    if (address.state) parts.push(address.state);
+    if (address.postal_code) parts.push(address.postal_code);
+    
+    return parts.join(", ");
+  };
+
+  const formatPaymentMethod = (method) => {
+    switch(method) {
+      case "cod":
+        return "Cash on Delivery";
+      case "wallet":
+        return "Wallet";
+      case "online":
+        return "Online Payment";
+      default:
+        return method;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -163,6 +216,8 @@ export const PendingDeliveries = ({ onStatusChange }) => {
                   <TableHead>Order ID</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Items</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Payment</TableHead>
                   <TableHead>Order Date</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Actions</TableHead>
@@ -183,6 +238,22 @@ export const PendingDeliveries = ({ onStatusChange }) => {
                           {item.quantity} × {item.product?.name || `${item.product?.milk_type || "Unknown"} Milk`}
                         </div>
                       ))}
+                    </TableCell>
+                    <TableCell className="max-w-[200px]">
+                      <div className="flex items-start gap-1">
+                        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <span className="text-sm break-words">
+                          {order.customer_address 
+                            ? formatAddress(order.customer, order.customer_address)
+                            : "Address not available"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <CreditCard className="h-4 w-4 text-muted-foreground" />
+                        <span>{formatPaymentMethod(order.payment_method)}</span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {formatDate(order.created_at)}

@@ -142,7 +142,7 @@ export const DeliveryMilkCollectionForm = () => {
       // Update milk stock - Fix the TypeScript error by properly typing the parameter
       const { error: stockError } = await supabase
         .rpc("update_milk_stock", { 
-          add_quantity: quantity as unknown as number  // Fix: Properly cast to the expected type
+          add_quantity: Number(quantity) // Convert to number explicitly to fix the type issue
         });
 
       if (stockError) {
