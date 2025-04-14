@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -100,7 +101,7 @@ export const MilkCollectionForm = () => {
             if (submission.quality_rating === 3) {
               consecutiveOffenses++;
             } else {
-              continue; // Stop counting if we find a non-substandard submission
+              break; // Stop counting if we find a non-substandard submission
             }
           }
         }
@@ -144,7 +145,6 @@ export const MilkCollectionForm = () => {
         toast({
           title: "Substandard Milk Detected",
           description: `Offense ${consecutiveOffenses} of 3. Farmer will be blacklisted after 3 consecutive substandard submissions.`,
-          // Fix #1: Change "warning" to "default" as "warning" is not a valid variant
           variant: "default",
         });
         
@@ -180,16 +180,49 @@ export const MilkCollectionForm = () => {
       }
 
       // For acceptable quality milk, proceed normally
+      // Get milk price for the selected milk type
+      const { data: priceData, error: priceError } = await supabase
+        .from("milk_pricing")
+        .select("price_per_liter")
+        .eq("milk_type", milkType)
+        .single();
+
+      if (priceError) {
+        console.error("Error fetching milk price:", priceError);
+        throw new Error("Failed to fetch milk price");
+      }
+      
+      const milkPrice = priceData.price_per_liter;
+      const totalAmount = Number(quantity) * milkPrice;
+      
+      // Create payment entry in the farmer_payments table
+      const { data: paymentData, error: paymentError } = await supabase
+        .from("farmer_payments")
+        .insert({
+          farmer_id: farmerUuid,
+          amount: totalAmount,
+          status: "pending",
+          notes: `Payment for ${quantity}L of ${milkType} milk contribution on ${new Date().toLocaleDateString()}`
+        })
+        .select();
+      
+      if (paymentError) {
+        console.error("Error creating payment record:", paymentError);
+        throw new Error("Failed to create payment record");
+      }
+
+      // Add milk contribution with payment_id reference
       const contributionData = {
         farmer_id: farmerUuid,
         quantity: Number(quantity),
         quality_rating: Number(qualityRating),
-        milk_type: milkType
+        milk_type: milkType,
+        payment_id: paymentData[0].id
       };
       
       console.log("Attempting to insert contribution data:", contributionData);
 
-      // Add milk contribution - price will be calculated by the trigger
+      // Add milk contribution
       const { error: contributionError } = await supabase
         .from("milk_contributions")
         .insert(contributionData);
@@ -199,34 +232,20 @@ export const MilkCollectionForm = () => {
         throw contributionError;
       }
 
-      // Fetch the current stock quantity
-      const { data: productData, error: fetchError } = await supabase
-        .from("products")
-        .select("stock_quantity")
-        .eq("milk_type", milkType)
-        .single();
+      // Update milk stock
+      const { error: stockError } = await supabase
+        .rpc("update_milk_stock", { 
+          add_quantity: Number(quantity) as never // Force type conversion
+        });
 
-      if (fetchError) {
-        console.error("Error fetching product stock quantity:", fetchError);
-        throw fetchError;
-      }
-
-      // Update the stock quantity
-      const newStockQuantity = (productData?.stock_quantity || 0) + Number(quantity);
-
-      const { error: updateError } = await supabase
-        .from("products")
-        .update({ stock_quantity: newStockQuantity })
-        .eq("milk_type", milkType);
-
-      if (updateError) {
-        console.error("Error updating product stock quantity:", updateError);
-        throw updateError;
+      if (stockError) {
+        console.error("Error updating milk stock:", stockError);
+        throw stockError;
       }
 
       toast({
         title: "Success!",
-        description: "Milk collection recorded successfully.",
+        description: "Milk collection and payment record created successfully.",
       });
 
       // Reset form
