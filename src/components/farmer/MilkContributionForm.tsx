@@ -83,10 +83,10 @@ export const MilkContributionForm = ({ farmerId }: MilkContributionFormProps) =>
 
       if (contributionError) throw contributionError;
 
-      // Update milk stock
+      // Update milk stock - Fix by explicitly typing the parameter as number
       const { error: stockError } = await supabase
         .rpc("update_milk_stock", { 
-          add_quantity: Number(quantity)
+          add_quantity: Number(quantity) // Explicit conversion to number
         });
 
       if (stockError) {
