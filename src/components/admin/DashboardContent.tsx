@@ -16,6 +16,7 @@ import { Reports } from "./Reports";
 import { FarmerPaymentApproval } from "./FarmerPaymentApproval";
 import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus, BarChart3, CreditCard, List, PlusCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MilkStockManager } from "./MilkStockManager";
 
 interface FarmerProfile {
   id: string;
@@ -95,6 +96,7 @@ export const DashboardContent = ({
             </Card>
           </div>
           
+          <MilkStockManager />
           <DeliverySummary />
         </div>
       );
@@ -180,6 +182,8 @@ export const DashboardContent = ({
               <div className="text-3xl font-bold">{totalMilkStock} L</div>
             </CardContent>
           </Card>
+          
+          <MilkStockManager />
           
           <Tabs defaultValue="collect">
             <TabsList className="mb-6">

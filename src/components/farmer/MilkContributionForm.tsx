@@ -86,7 +86,7 @@ export const MilkContributionForm = ({ farmerId }: MilkContributionFormProps) =>
       // Update milk stock
       const { error: stockError } = await supabase
         .rpc("update_milk_stock", { 
-          add_quantity: Number(quantity) as never // Force type conversion
+          add_quantity: Number(quantity) 
         });
 
       if (stockError) {

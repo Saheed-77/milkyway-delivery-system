@@ -1,71 +1,234 @@
-
+import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { MilkTypeSelector } from "./order/MilkTypeSelector";
-import { QuantityInput } from "./order/QuantityInput";
-import { PaymentMethodSelector } from "./order/PaymentMethodSelector";
-import { OrderSummary } from "./order/OrderSummary";
-import { useOrderLogic } from "./order/useOrderLogic";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ShoppingBag } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-interface QuickOrderFormProps {
-  onOrderComplete?: () => void;
-}
+export const QuickOrderForm = ({ onOrderComplete }) => {
+  const [products, setProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [quantity, setQuantity] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-export const QuickOrderForm = ({ onOrderComplete }: QuickOrderFormProps) => {
-  const {
-    quantity,
-    setQuantity,
-    milkType,
-    setMilkType,
-    paymentMethod,
-    setPaymentMethod,
-    isLoading,
-    walletBalance,
-    estimatedCost,
-    insufficientFunds,
-    handleSubmit
-  } = useOrderLogic(onOrderComplete);
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setProducts(data || []);
+      setSelectedProduct(data?.[0] || null);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load products. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Add this validation function to check stock availability 
+  const checkStockAvailability = async (milkType, quantity) => {
+    try {
+      // Get total milk stock
+      const { data: stockData, error: stockError } = await supabase
+        .from("milk_stock")
+        .select("total_stock")
+        .single();
+        
+      if (stockError) throw stockError;
+      
+      // Get reserved amount
+      const { data: reservationData, error: reservationError } = await supabase
+        .from("stock_reservations")
+        .select("reserved_amount")
+        .order("reservation_date", { ascending: false })
+        .limit(1);
+      
+      // If we can't get reservations (table doesn't exist yet), just check against total stock
+      if (reservationError) {
+        console.log("No stock reservations found, checking against total stock");
+        return {
+          available: (stockData?.total_stock || 0) >= quantity,
+          availableQuantity: stockData?.total_stock || 0
+        };
+      }
+      
+      // Calculate available stock after reservations
+      const reservedAmount = reservationData?.[0]?.reserved_amount || 0;
+      const availableStock = (stockData?.total_stock || 0) - reservedAmount;
+      
+      return {
+        available: availableStock >= quantity,
+        availableQuantity: availableStock
+      };
+    } catch (error) {
+      console.error("Error checking stock availability:", error);
+      // Default to available in case of error to not block orders
+      return { available: true, availableQuantity: 0 };
+    }
+  };
+
+  // In the handleSubmit function, add stock availability check before processing the order
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedProduct || quantity <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a product and enter a valid quantity.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Check stock availability first
+      const stockCheck = await checkStockAvailability(selectedProduct.milk_type, quantity);
+      
+      if (!stockCheck.available) {
+        toast({
+          title: "Insufficient Stock",
+          description: `Sorry, we only have ${stockCheck.availableQuantity}L available. Please reduce your order quantity.`,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("You must be logged in to place an order");
+      }
+
+      // Create a new order
+      const { data: orderData, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          customer_id: session.user.id,
+          total_amount: selectedProduct.price * quantity,
+          status: "pending",
+          payment_method: "wallet",
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const { error: orderItemError } = await supabase
+        .from("order_items")
+        .insert({
+          order_id: orderData.id,
+          product_id: selectedProduct.id,
+          quantity: quantity,
+          unit_price: selectedProduct.price,
+        });
+
+      if (orderItemError) throw orderItemError;
+
+      toast({
+        title: "Order placed",
+        description: "Your order has been successfully placed.",
+      });
+
+      // Reset form
+      setQuantity(1);
+
+      // Notify parent component
+      onOrderComplete?.();
+    } catch (error) {
+      console.error("Error placing order:", error);
+      toast({
+        title: "Error",
+        description: "Failed to place order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Quick Order</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center">
+          <ShoppingBag className="h-5 w-5 mr-2 text-[#437358]" />
+          Quick Order
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <MilkTypeSelector 
-            value={milkType} 
-            onChange={setMilkType} 
-          />
-          
-          <QuantityInput 
-            value={quantity} 
-            onChange={(e) => setQuantity(e.target.value)} 
-          />
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading products...</p>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="product">Product</Label>
+              <Select
+                value={selectedProduct?.id}
+                onValueChange={(value) =>
+                  setSelectedProduct(
+                    products.find((product) => product.id === value) || null
+                  )
+                }
+                disabled={isLoading || products.length === 0}
+              >
+                <SelectTrigger id="product">
+                  <SelectValue placeholder="Select a product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name || product.milk_type} Milk - ₹{product.price}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <PaymentMethodSelector 
-            value={paymentMethod} 
-            onChange={setPaymentMethod} 
-            walletBalance={walletBalance} 
-          />
+            <div className="space-y-2">
+              <Label htmlFor="quantity">Quantity</Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="1"
+                value={quantity}
+                onChange={(e) => setQuantity(Number(e.target.value))}
+                disabled={isLoading}
+              />
+            </div>
 
-          <OrderSummary 
-            estimatedCost={estimatedCost}
-            insufficientFunds={insufficientFunds}
-            paymentMethod={paymentMethod}
-            walletBalance={walletBalance}
-          />
-
-          <CardFooter className="px-0 pt-2">
-            <Button 
-              type="submit" 
+            <Button
               className="w-full bg-[#437358] hover:bg-[#345c46]"
-              disabled={isLoading || (paymentMethod === "wallet" && insufficientFunds)}
+              onClick={handleSubmit}
+              disabled={isSubmitting || !selectedProduct}
             >
-              {isLoading ? "Processing..." : "Place Order"}
+              {isSubmitting ? "Placing Order..." : "Place Order"}
             </Button>
-          </CardFooter>
-        </form>
+          </>
+        )}
       </CardContent>
     </Card>
   );
