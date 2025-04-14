@@ -14,6 +14,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Milk, CalendarDays, AlertTriangle, CheckCircle } from "lucide-react";
 import { format, addDays } from "date-fns";
 
+// Define an interface for the reservation data
+interface StockReservation {
+  id: string;
+  reservation_date: string;
+  reserved_amount: number;
+  reservation_type: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export const MilkStockManager = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [milkStock, setMilkStock] = useState(0);
@@ -39,17 +49,23 @@ export const MilkStockManager = () => {
         .single();
       
       if (stockError) throw stockError;
+
+      // Using a safer approach to check for stock reservations
+      let reservationData: StockReservation[] | null = null;
+      let reservationError = null;
       
-      // Get the reservation data
-      const { data: reservationData, error: reservationError } = await supabase
-        .from("stock_reservations")
-        .select("*")
-        .order("reservation_date", { ascending: false })
-        .limit(1);
-        
-      if (reservationError) {
-        // Table might not exist yet, we'll create it when needed
-        console.log("Stock reservations table might not exist yet");
+      try {
+        const result = await supabase
+          .from("stock_reservations")
+          .select("*")
+          .order("reservation_date", { ascending: false })
+          .limit(1);
+          
+        reservationData = result.data as StockReservation[] | null;
+        reservationError = result.error;
+      } catch (err) {
+        console.log("Error fetching reservations:", err);
+        // Table might not exist yet, we'll handle this below
       }
       
       // Calculate daily subscription demand
@@ -84,11 +100,15 @@ export const MilkStockManager = () => {
         }
       });
       
-      // Get the last reservation date
-      const lastReservation = reservationData?.[0]?.reservation_date || null;
+      // Get the last reservation date and amount
+      let lastReservation = null;
+      let currentReserved = 0;
       
-      // Calculate currently reserved stock
-      const currentReserved = reservationData?.[0]?.reserved_amount || 0;
+      if (reservationData && reservationData.length > 0) {
+        const reservation = reservationData[0];
+        lastReservation = reservation.reservation_date;
+        currentReserved = reservation.reserved_amount;
+      }
       
       // Calculate available stock
       const available = (stockData?.total_stock || 0) - currentReserved;
@@ -128,41 +148,35 @@ export const MilkStockManager = () => {
       // Create a new reservation for tomorrow
       const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
       
-      // Check if the stock_reservations table exists, if not create it
-      const { error: insertError } = await supabase
-        .from("stock_reservations")
-        .insert({
-          reservation_date: tomorrow,
-          reserved_amount: subscriptionDemand,
-          reservation_type: "subscription"
-        });
-        
-      if (insertError) {
-        // Table might not exist yet
-        if (insertError.message.includes("relation") && insertError.message.includes("does not exist")) {
-          console.log("Creating stock_reservations table...");
-          // We'll let the user know they need to create the table
-          throw new Error("Stock reservations table needs to be created first. Please ask Lovable to create it.");
-        } else {
+      try {
+        // Try to insert a reservation
+        const { error: insertError } = await supabase
+          .from("stock_reservations")
+          .insert({
+            reservation_date: tomorrow,
+            reserved_amount: subscriptionDemand,
+            reservation_type: "subscription"
+          });
+          
+        if (insertError) {
           throw insertError;
         }
+        
+        toast({
+          title: "Success",
+          description: `Reserved ${subscriptionDemand}L for subscriptions on ${tomorrow}`,
+        });
+        
+        // Refresh the data
+        fetchMilkStockData();
+      } catch (error) {
+        console.error("Error reserving stock:", error);
+        toast({
+          title: "Error",
+          description: "Failed to reserve stock. The stock_reservations table might need to be created first.",
+          variant: "destructive"
+        });
       }
-      
-      toast({
-        title: "Success",
-        description: `Reserved ${subscriptionDemand}L for subscriptions on ${tomorrow}`,
-      });
-      
-      // Refresh the data
-      fetchMilkStockData();
-      
-    } catch (error) {
-      console.error("Error reserving stock:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to reserve stock",
-        variant: "destructive"
-      });
     } finally {
       setProcessingReservation(false);
     }

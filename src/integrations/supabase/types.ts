@@ -348,6 +348,33 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_reservations: {
+        Row: {
+          created_at: string
+          id: string
+          reservation_date: string
+          reservation_type: string
+          reserved_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reservation_date: string
+          reservation_type?: string
+          reserved_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reservation_date?: string
+          reservation_type?: string
+          reserved_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -444,7 +471,14 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      check_stock_availability: {
+        Args: { requested_quantity: number }
+        Returns: boolean
+      }
+      update_milk_stock_safe: {
+        Args: { add_quantity: number }
+        Returns: boolean
+      }
     }
     Enums: {
       delivery_status: "pending" | "delivered" | "rejected"

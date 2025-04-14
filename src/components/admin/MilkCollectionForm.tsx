@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -231,9 +232,9 @@ export const MilkCollectionForm = () => {
         throw contributionError;
       }
 
-      // Update milk stock
+      // Update milk stock - fix TypeScript error by explicitly using Number
       const { error: stockError } = await supabase
-        .rpc("update_milk_stock", { 
+        .rpc("update_milk_stock_safe", { 
           add_quantity: Number(quantity) 
         });
 

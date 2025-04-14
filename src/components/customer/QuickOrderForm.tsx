@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,16 @@ import {
 } from "@/components/ui/select";
 import { ShoppingBag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+
+// Define an interface for the reservation data
+interface StockReservation {
+  id: string;
+  reservation_date: string;
+  reserved_amount: number;
+  reservation_type: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export const QuickOrderForm = ({ onOrderComplete }) => {
   const [products, setProducts] = useState([]);
@@ -60,16 +71,26 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
         
       if (stockError) throw stockError;
       
-      // Get reserved amount
-      const { data: reservationData, error: reservationError } = await supabase
-        .from("stock_reservations")
-        .select("reserved_amount")
-        .order("reservation_date", { ascending: false })
-        .limit(1);
+      // Get reserved amount - using safer approach for table that might not exist yet
+      let reservationData: StockReservation[] | null = null;
+      let reservationError = null;
       
-      // If we can't get reservations (table doesn't exist yet), just check against total stock
-      if (reservationError) {
+      try {
+        const result = await supabase
+          .from("stock_reservations")
+          .select("reserved_amount")
+          .order("reservation_date", { ascending: false })
+          .limit(1);
+          
+        reservationData = result.data as StockReservation[] | null;
+        reservationError = result.error;
+      } catch (err) {
         console.log("No stock reservations found, checking against total stock");
+        // Table might not exist yet, we'll handle this below
+      }
+      
+      // If we can't get reservations, just check against total stock
+      if (!reservationData || reservationData.length === 0) {
         return {
           available: (stockData?.total_stock || 0) >= quantity,
           availableQuantity: stockData?.total_stock || 0
@@ -77,7 +98,7 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
       }
       
       // Calculate available stock after reservations
-      const reservedAmount = reservationData?.[0]?.reserved_amount || 0;
+      const reservedAmount = reservationData[0]?.reserved_amount || 0;
       const availableStock = (stockData?.total_stock || 0) - reservedAmount;
       
       return {
