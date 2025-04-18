@@ -14,17 +14,9 @@ import {
 } from "@/components/ui/select";
 import { ShoppingBag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { StockReservation } from "@/types/milk";
 
 // Define an interface for the reservation data
-interface StockReservation {
-  id: string;
-  reservation_date: string;
-  reserved_amount: number;
-  reservation_type: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export const QuickOrderForm = ({ onOrderComplete }) => {
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -71,34 +63,47 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
         
       if (stockError) throw stockError;
       
-      // Get reserved amount - using safer approach for table that might not exist yet
-      let reservationData: StockReservation[] | null = null;
-      let reservationError = null;
-      
+      // Try to use the RPC function
       try {
-        const result = await supabase
-          .from("stock_reservations")
-          .select("reserved_amount")
-          .order("reservation_date", { ascending: false })
-          .limit(1);
+        const { data: isAvailable, error: availabilityError } = await supabase
+          .rpc('check_stock_availability', { requested_quantity: quantity });
           
-        reservationData = result.data as StockReservation[] | null;
-        reservationError = result.error;
+        if (!availabilityError) {
+          return {
+            available: isAvailable,
+            availableQuantity: stockData?.total_stock || 0
+          };
+        }
       } catch (err) {
-        console.log("No stock reservations found, checking against total stock");
-        // Table might not exist yet, we'll handle this below
+        console.log("RPC check failed, using direct query");
       }
       
-      // If we can't get reservations, just check against total stock
-      if (!reservationData || reservationData.length === 0) {
-        return {
-          available: (stockData?.total_stock || 0) >= quantity,
-          availableQuantity: stockData?.total_stock || 0
-        };
+      // If RPC fails, try to get reserved amount directly - handle safely if table doesn't exist
+      let reservedAmount = 0;
+      
+      try {
+        const { data: reservations, error: reservationsError } = await supabase
+          .rpc('get_stock_reservations');
+          
+        if (!reservationsError && reservations && reservations.length > 0) {
+          reservedAmount = reservations[0].reserved_amount || 0;
+        } else {
+          // Try direct query as any to avoid type errors
+          const { data: rawReservations } = await supabase
+            .from('stock_reservations')
+            .select('*')
+            .order('reservation_date', { ascending: false })
+            .limit(1) as { data: any[] };
+            
+          if (rawReservations && rawReservations.length > 0) {
+            reservedAmount = rawReservations[0].reserved_amount || 0;
+          }
+        }
+      } catch (err) {
+        console.log("No stock reservations found, checking against total stock");
       }
       
       // Calculate available stock after reservations
-      const reservedAmount = reservationData[0]?.reserved_amount || 0;
       const availableStock = (stockData?.total_stock || 0) - reservedAmount;
       
       return {

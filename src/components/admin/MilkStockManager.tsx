@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -13,16 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Milk, CalendarDays, AlertTriangle, CheckCircle } from "lucide-react";
 import { format, addDays } from "date-fns";
-
-// Define an interface for the reservation data
-interface StockReservation {
-  id: string;
-  reservation_date: string;
-  reserved_amount: number;
-  reservation_type: string;
-  created_at: string;
-  updated_at: string;
-}
+import { StockReservation } from "@/types/milk";
 
 export const MilkStockManager = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -52,17 +42,31 @@ export const MilkStockManager = () => {
 
       // Using a safer approach to check for stock reservations
       let reservationData: StockReservation[] | null = null;
-      let reservationError = null;
       
       try {
+        // Try using a generic query that's safe even if the table doesn't exist yet
         const result = await supabase
-          .from("stock_reservations")
-          .select("*")
-          .order("reservation_date", { ascending: false })
-          .limit(1);
+          .rpc('check_stock_availability', { requested_quantity: 0 });
           
-        reservationData = result.data as StockReservation[] | null;
-        reservationError = result.error;
+        // Now try to get the reservations - this is a direct query approach
+        const { data, error } = await supabase.rpc('get_stock_reservations');
+        
+        if (!error && data) {
+          reservationData = data as StockReservation[];
+        } else {
+          console.log("Using fallback method to get reservations");
+          // Direct query approach might fail if table doesn't exist or RPC isn't created
+          // Use direct SQL query via function instead
+          const { data: rawData, error: rawError } = await supabase
+            .from('stock_reservations')
+            .select('*')
+            .order('reservation_date', { ascending: false })
+            .limit(1) as { data: StockReservation[] | null, error: any };
+            
+          if (!rawError) {
+            reservationData = rawData;
+          }
+        }
       } catch (err) {
         console.log("Error fetching reservations:", err);
         // Table might not exist yet, we'll handle this below
@@ -149,17 +153,25 @@ export const MilkStockManager = () => {
       const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
       
       try {
-        // Try to insert a reservation
+        // Try to insert a reservation - use SQL instead of relying on types
         const { error: insertError } = await supabase
-          .from("stock_reservations")
-          .insert({
-            reservation_date: tomorrow,
-            reserved_amount: subscriptionDemand,
-            reservation_type: "subscription"
+          .rpc('create_stock_reservation', { 
+            res_date: tomorrow,
+            res_amount: subscriptionDemand,
+            res_type: "subscription" 
           });
           
         if (insertError) {
-          throw insertError;
+          // Fallback to direct insert as any
+          const { error: fallbackError } = await supabase
+            .from('stock_reservations')
+            .insert({
+              reservation_date: tomorrow,
+              reserved_amount: subscriptionDemand,
+              reservation_type: "subscription"
+            } as any);
+            
+          if (fallbackError) throw fallbackError;
         }
         
         toast({
