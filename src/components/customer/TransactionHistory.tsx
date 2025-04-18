@@ -4,7 +4,9 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Receipt, ArrowUp, ArrowDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Receipt, ArrowUp, ArrowDown, Download } from "lucide-react";
+import { generatePDF, formatCurrency } from "@/utils/pdfGenerator";
 
 interface Transaction {
   id: string;
@@ -17,6 +19,7 @@ interface Transaction {
 export const TransactionHistory = ({ refreshTrigger = 0 }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [customerName, setCustomerName] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -38,6 +41,17 @@ export const TransactionHistory = ({ refreshTrigger = 0 }) => {
 
       if (error) throw error;
       setTransactions(data || []);
+      
+      // Get customer profile for the PDF header
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("id", session.user.id)
+        .single();
+        
+      if (profile) {
+        setCustomerName(`${profile.first_name || ''} ${profile.last_name || ''}`.trim());
+      }
     } catch (error) {
       console.error("Error fetching transactions:", error);
       toast({
@@ -48,6 +62,33 @@ export const TransactionHistory = ({ refreshTrigger = 0 }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleExportPDF = () => {
+    const columns = [
+      { header: 'Type', dataKey: 'type' },
+      { header: 'Date', dataKey: 'date' },
+      { header: 'Amount', dataKey: 'amount' },
+      { header: 'Status', dataKey: 'status' },
+    ];
+    
+    const data = transactions.map(transaction => {
+      return {
+        type: transaction.transaction_type.charAt(0).toUpperCase() + transaction.transaction_type.slice(1),
+        date: formatDate(transaction.created_at),
+        amount: `${transaction.transaction_type === 'deposit' ? '+ ' : '- '}${formatCurrency(Math.abs(transaction.amount))}`,
+        status: transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)
+      };
+    });
+    
+    const subtitle = customerName ? `Customer: ${customerName}` : undefined;
+    
+    generatePDF(columns, data, { 
+      title: 'Wallet Transaction History',
+      fileName: 'transaction-history',
+      subtitle,
+      footerText: 'Farm Fresh Dairy - Customer Transactions Report',
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -87,11 +128,20 @@ export const TransactionHistory = ({ refreshTrigger = 0 }) => {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           <Receipt className="h-5 w-5 text-[#437358]" />
           Transaction History
         </CardTitle>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1" 
+          onClick={handleExportPDF}
+        >
+          <Download className="h-4 w-4" />
+          Export PDF
+        </Button>
       </CardHeader>
       <CardContent>
         {isLoading ? (

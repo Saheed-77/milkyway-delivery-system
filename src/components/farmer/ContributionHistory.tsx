@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -5,6 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import { generatePDF, formatCurrency } from "@/utils/pdfGenerator";
 
 interface MilkContribution {
   id: string;
@@ -26,6 +30,7 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
   const { toast } = useToast();
   const [contributions, setContributions] = useState<MilkContribution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingPayments, setPendingPayments] = useState<number>(0);
 
   useEffect(() => {
     if (!farmerId) return;
@@ -60,6 +65,11 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
         })) || [];
         
         setContributions(transformedData);
+
+        // Calculate pending payments
+        const pending = transformedData.filter(c => c.payment_status === 'pending');
+        const pendingAmount = pending.reduce((sum, c) => sum + (c.price || 0), 0);
+        setPendingPayments(pendingAmount);
       } catch (error: any) {
         toast({
           title: "Error loading contributions",
@@ -73,6 +83,43 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
 
     fetchContributions();
   }, [farmerId, toast]);
+
+  const handleExportPDF = () => {
+    const columns = [
+      { header: 'Date', dataKey: 'date' },
+      { header: 'Milk Type', dataKey: 'milk_type' },
+      { header: 'Quantity (L)', dataKey: 'quantity' },
+      { header: 'Price/L', dataKey: 'price_per_liter' },
+      { header: 'Amount', dataKey: 'amount' },
+      { header: 'Quality', dataKey: 'quality' },
+      { header: 'Payment', dataKey: 'payment' },
+    ];
+    
+    const data = contributions.map(contribution => {
+      const pricePerLiter = contribution.quantity > 0 ? contribution.price / contribution.quantity : 0;
+      let quality = 'Pending';
+      if (contribution.quality_rating === 1) quality = 'A (Excellent)';
+      if (contribution.quality_rating === 2) quality = 'B (Good)';
+      if (contribution.quality_rating === 3) quality = 'C (Below Standard)';
+      
+      return {
+        date: format(new Date(contribution.contribution_date), "MMM d, yyyy"),
+        milk_type: formatMilkType(contribution.milk_type),
+        quantity: contribution.quantity === 0 ? 'Rejected' : contribution.quantity,
+        price_per_liter: contribution.quantity === 0 ? 'N/A' : formatCurrency(pricePerLiter),
+        amount: contribution.quantity === 0 ? '₹0.00' : formatCurrency(contribution.price),
+        quality: quality,
+        payment: contribution.payment_status.charAt(0).toUpperCase() + contribution.payment_status.slice(1)
+      };
+    });
+    
+    generatePDF(columns, data, { 
+      title: 'Milk Contribution History',
+      fileName: 'contribution-history',
+      subtitle: `Total Pending Payments: ${formatCurrency(pendingPayments)}`,
+      footerText: 'Farm Fresh Dairy - Farmer Contributions Report',
+    });
+  };
 
   if (isLoading) {
     return (
@@ -139,63 +186,81 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
   };
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Milk Type</TableHead>
-            <TableHead>Quantity (L)</TableHead>
-            <TableHead>Price/L</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Quality</TableHead>
-            <TableHead>Payment</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {contributions.map((contribution) => (
-            <TableRow 
-              key={contribution.id}
-              className={contribution.quality_rating === 3 ? "bg-red-50" : ""}
-            >
-              <TableCell>
-                {format(new Date(contribution.contribution_date), "MMM d, yyyy")}
-              </TableCell>
-              <TableCell>{formatMilkType(contribution.milk_type)}</TableCell>
-              <TableCell>
-                {contribution.quantity === 0 ? (
-                  <span className="text-red-600">Rejected</span>
-                ) : (
-                  contribution.quantity
-                )}
-              </TableCell>
-              <TableCell>
-                {contribution.quantity === 0 ? (
-                  "N/A"
-                ) : (
-                  `₹${(contribution.price / contribution.quantity).toFixed(2)}`
-                )}
-              </TableCell>
-              <TableCell className="font-medium">
-                {contribution.quantity === 0 ? (
-                  "₹0.00"
-                ) : (
-                  `₹${contribution.price.toFixed(2)}`
-                )}
-              </TableCell>
-              <TableCell>
-                <div>
-                  {getQualityBadge(contribution.quality_rating)}
-                  {getRejectionInfo(contribution)}
-                </div>
-              </TableCell>
-              <TableCell>
-                {getPaymentStatusBadge(contribution.payment_status || 'pending')}
-              </TableCell>
+    <div>
+      <div className="flex justify-between mb-4">
+        {pendingPayments > 0 && (
+          <div className="text-sm text-amber-600 font-medium">
+            Pending Payments: {formatCurrency(pendingPayments)}
+          </div>
+        )}
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="ml-auto flex items-center gap-1" 
+          onClick={handleExportPDF}
+        >
+          <Download className="h-4 w-4" />
+          Export PDF
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Milk Type</TableHead>
+              <TableHead>Quantity (L)</TableHead>
+              <TableHead>Price/L</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Quality</TableHead>
+              <TableHead>Payment</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {contributions.map((contribution) => (
+              <TableRow 
+                key={contribution.id}
+                className={contribution.quality_rating === 3 ? "bg-red-50" : ""}
+              >
+                <TableCell>
+                  {format(new Date(contribution.contribution_date), "MMM d, yyyy")}
+                </TableCell>
+                <TableCell>{formatMilkType(contribution.milk_type)}</TableCell>
+                <TableCell>
+                  {contribution.quantity === 0 ? (
+                    <span className="text-red-600">Rejected</span>
+                  ) : (
+                    contribution.quantity
+                  )}
+                </TableCell>
+                <TableCell>
+                  {contribution.quantity === 0 ? (
+                    "N/A"
+                  ) : (
+                    `₹${(contribution.price / contribution.quantity).toFixed(2)}`
+                  )}
+                </TableCell>
+                <TableCell className="font-medium">
+                  {contribution.quantity === 0 ? (
+                    "₹0.00"
+                  ) : (
+                    `₹${contribution.price.toFixed(2)}`
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div>
+                    {getQualityBadge(contribution.quality_rating)}
+                    {getRejectionInfo(contribution)}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {getPaymentStatusBadge(contribution.payment_status || 'pending')}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };

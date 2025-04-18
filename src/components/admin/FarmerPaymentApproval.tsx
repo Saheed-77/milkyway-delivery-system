@@ -4,7 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Clock, X, FileText } from "lucide-react";
+import { CheckCircle, Clock, X, FileText, Download } from "lucide-react";
 import { format } from "date-fns";
 import {
   Table,
@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { generatePDF, formatCurrency } from "@/utils/pdfGenerator";
 
 interface FarmerPayment {
   id: string;
@@ -26,6 +27,7 @@ interface FarmerPayment {
     first_name: string;
     last_name: string;
   };
+  farmer_id?: string;
   contributions?: {
     id: string;
     quantity: number;
@@ -172,12 +174,51 @@ export const FarmerPaymentApproval = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
+  const formatCurrencyValue = (amount) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
       minimumFractionDigits: 2
     }).format(amount);
+  };
+
+  const handleExportPDF = () => {
+    const columns = [
+      { header: 'Farmer', dataKey: 'farmer' },
+      { header: 'Amount', dataKey: 'amount' },
+      { header: 'Date', dataKey: 'date' },
+      { header: 'Status', dataKey: 'status' },
+      { header: 'Contributions', dataKey: 'contributions' },
+    ];
+    
+    const data = payments.map(payment => {
+      return {
+        farmer: `${payment.farmer?.first_name || ''} ${payment.farmer?.last_name || ''}`.trim(),
+        amount: formatCurrencyValue(payment.amount),
+        date: format(new Date(payment.payment_date), "MMM dd, yyyy"),
+        status: payment.status.charAt(0).toUpperCase() + payment.status.slice(1),
+        contributions: payment.contributions?.length || 0
+      };
+    });
+    
+    // Calculate total by status
+    const totalPending = payments
+      .filter(p => p.status === 'pending')
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    const totalApproved = payments
+      .filter(p => p.status === 'approved')
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    const subtitle = `Total Pending: ${formatCurrencyValue(totalPending)} | Total Approved: ${formatCurrencyValue(totalApproved)}`;
+    
+    generatePDF(columns, data, { 
+      title: 'Farmer Payments Report',
+      fileName: 'farmer-payments',
+      subtitle,
+      footerText: 'Farm Fresh Dairy - Admin Payment Report',
+      orientation: 'landscape'
+    });
   };
 
   return (
@@ -187,6 +228,15 @@ export const FarmerPaymentApproval = () => {
           <FileText className="h-5 w-5 mr-2 text-[#437358]" />
           Farmer Payment Approval
         </CardTitle>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1" 
+          onClick={handleExportPDF}
+        >
+          <Download className="h-4 w-4" />
+          Export PDF
+        </Button>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -222,7 +272,7 @@ export const FarmerPaymentApproval = () => {
                     </TableCell>
                     <TableCell>
                       <span className="font-medium">
-                        {formatCurrency(payment.amount)}
+                        {formatCurrencyValue(payment.amount)}
                       </span>
                     </TableCell>
                     <TableCell>
