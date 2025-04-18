@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +14,8 @@ interface MilkContribution {
   quality_rating: number | null;
   created_at: string;
   price: number;
+  payment_id: string;
+  payment_status?: string;
 }
 
 interface ContributionHistoryProps {
@@ -32,7 +33,7 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
     const fetchContributions = async () => {
       setIsLoading(true);
       try {
-        // Get milk contributions with the price field (now stored in the database)
+        // Get milk contributions with payment status
         const { data, error } = await supabase
           .from("milk_contributions")
           .select(`
@@ -42,7 +43,9 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
             contribution_date,
             quality_rating,
             created_at,
-            price
+            price,
+            payment_id,
+            farmer_payments(status)
           `)
           .eq("farmer_id", farmerId)
           .order("contribution_date", { ascending: false })
@@ -50,7 +53,13 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
 
         if (error) throw error;
         
-        setContributions(data || []);
+        // Transform data to include payment status
+        const transformedData = data?.map(contribution => ({
+          ...contribution,
+          payment_status: contribution.farmer_payments?.status || 'pending'
+        })) || [];
+        
+        setContributions(transformedData);
       } catch (error: any) {
         toast({
           title: "Error loading contributions",
@@ -116,6 +125,19 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
     return null;
   };
 
+  const getPaymentStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge className="bg-green-100 text-green-800">Paid</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
+    }
+  };
+
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -127,6 +149,7 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
             <TableHead>Price/L</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead>Quality</TableHead>
+            <TableHead>Payment</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -165,6 +188,9 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
                   {getQualityBadge(contribution.quality_rating)}
                   {getRejectionInfo(contribution)}
                 </div>
+              </TableCell>
+              <TableCell>
+                {getPaymentStatusBadge(contribution.payment_status || 'pending')}
               </TableCell>
             </TableRow>
           ))}

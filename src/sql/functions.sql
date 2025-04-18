@@ -86,3 +86,53 @@ BEGIN
   RETURN TRUE;
 END;
 $$;
+
+-- Function to automatically reserve stock for subscriptions
+CREATE OR REPLACE FUNCTION public.auto_reserve_subscription_stock()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  daily_demand NUMERIC := 0;
+  tomorrow DATE := CURRENT_DATE + 1;
+  existing_reservation_id UUID;
+  new_reservation_id UUID;
+BEGIN
+  -- Calculate daily demand from active subscriptions
+  SELECT COALESCE(SUM(
+    CASE 
+      WHEN frequency = 'daily' THEN quantity
+      WHEN frequency = 'weekly' THEN quantity / 7
+      WHEN frequency = 'monthly' THEN quantity / 30
+      ELSE 0
+    END
+  ), 0) INTO daily_demand
+  FROM subscriptions
+  WHERE status = 'active';
+  
+  -- Round up the daily demand
+  daily_demand := CEILING(daily_demand);
+  
+  -- Check if a reservation already exists for tomorrow
+  SELECT id INTO existing_reservation_id 
+  FROM stock_reservations
+  WHERE reservation_date = tomorrow
+  LIMIT 1;
+  
+  -- If reservation exists, update it. Otherwise create a new one
+  IF existing_reservation_id IS NOT NULL THEN
+    UPDATE stock_reservations
+    SET reserved_amount = daily_demand
+    WHERE id = existing_reservation_id;
+  ELSE
+    -- Create a new reservation for tomorrow
+    INSERT INTO stock_reservations 
+      (reservation_date, reserved_amount, reservation_type)
+    VALUES 
+      (tomorrow, daily_demand, 'subscription')
+    RETURNING id INTO new_reservation_id;
+  END IF;
+  
+  RETURN TRUE;
+END;
+$$;

@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -14,9 +15,11 @@ import { MilkPricingForm } from "./MilkPricingForm";
 import { DeliverySummary } from "../delivery/DeliverySummary";
 import { Reports } from "./Reports";
 import { FarmerPaymentApproval } from "./FarmerPaymentApproval";
-import { Milk, ChartBar, ShoppingBag, UserCheck, UserPlus, BarChart3, CreditCard, List, PlusCircle } from "lucide-react";
+import { Milk, ShoppingBag, UserCheck, UserPlus, BarChart3, CreditCard, List, PlusCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MilkStockManager } from "./MilkStockManager";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FarmerProfile {
   id: string;
@@ -47,6 +50,60 @@ export const DashboardContent = ({
 }: DashboardContentProps) => {
   const blacklistedFarmers = approvedFarmers.filter(farmer => farmer.status === 'rejected');
   const activeFarmers = approvedFarmers.filter(farmer => farmer.status === 'approved');
+  const [weeklyCollection, setWeeklyCollection] = useState(0);
+  const [weeklyOrders, setWeeklyOrders] = useState(0);
+
+  useEffect(() => {
+    if (activeSection === "dashboard") {
+      // Fetch weekly milk collection volume
+      const fetchWeeklyCollection = async () => {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        const { data, error } = await supabase
+          .from("milk_contributions")
+          .select("quantity")
+          .gte("contribution_date", oneWeekAgo.toISOString().split('T')[0]);
+          
+        if (!error && data) {
+          const totalCollection = data.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+          setWeeklyCollection(totalCollection);
+        }
+      };
+      
+      // Fetch weekly order volume
+      const fetchWeeklyOrders = async () => {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        const { data, error } = await supabase
+          .from("order_items")
+          .select("order_items.quantity, products.milk_type")
+          .join("products", { "order_items.product_id": "products.id" })
+          .gte("order_items.created_at", oneWeekAgo.toISOString());
+          
+        if (!error && data) {
+          const totalOrdered = data.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+          setWeeklyOrders(totalOrdered);
+        }
+      };
+      
+      fetchWeeklyCollection();
+      fetchWeeklyOrders();
+      
+      // Call the auto-reserve function daily
+      const autoReserveStock = async () => {
+        try {
+          await supabase.rpc('auto_reserve_subscription_stock');
+        } catch (error) {
+          console.error("Error auto-reserving stock:", error);
+        }
+      };
+      
+      // Schedule auto-reservation once at component mount
+      autoReserveStock();
+    }
+  }, [activeSection]);
 
   switch (activeSection) {
     case "dashboard":
@@ -69,28 +126,28 @@ export const DashboardContent = ({
 
             <Card>
               <CardHeader>
-                <CardTitle>New Orders</CardTitle>
-                <CardDescription>Total new orders placed today</CardDescription>
+                <CardTitle>Weekly Orders</CardTitle>
+                <CardDescription>Milk ordered in the last 7 days</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">25</div>
+                <div className="text-3xl font-bold">{weeklyOrders} L</div>
                 <div className="flex items-center text-sm text-muted-foreground mt-2">
                   <ShoppingBag className="w-4 h-4 mr-2" />
-                  <span>Compared to yesterday</span>
+                  <span>Last 7 days</span>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Website Visits</CardTitle>
-                <CardDescription>Number of visits to the website</CardDescription>
+                <CardTitle>Weekly Collection</CardTitle>
+                <CardDescription>Milk collected in the last 7 days</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">1,250</div>
+                <div className="text-3xl font-bold">{weeklyCollection} L</div>
                 <div className="flex items-center text-sm text-muted-foreground mt-2">
-                  <ChartBar className="w-4 h-4 mr-2" />
-                  <span>Increased by 15%</span>
+                  <Milk className="w-4 h-4 mr-2" />
+                  <span>From all farmers</span>
                 </div>
               </CardContent>
             </Card>
