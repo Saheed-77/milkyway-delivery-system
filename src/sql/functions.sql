@@ -34,3 +34,55 @@ BEGIN
   RETURN new_id;
 END;
 $$;
+
+-- Function to safely check stock availability
+CREATE OR REPLACE FUNCTION public.check_stock_availability(
+  requested_quantity NUMERIC
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  total_stock NUMERIC;
+  reserved_amount NUMERIC;
+  available_stock NUMERIC;
+BEGIN
+  -- Get total milk stock
+  SELECT total_stock INTO total_stock FROM public.milk_stock LIMIT 1;
+  
+  -- Get latest reservation
+  SELECT COALESCE(SUM(reserved_amount), 0) INTO reserved_amount 
+  FROM public.stock_reservations 
+  WHERE reservation_date >= CURRENT_DATE;
+  
+  -- Calculate available stock
+  available_stock := COALESCE(total_stock, 0) - COALESCE(reserved_amount, 0);
+  
+  -- Return whether there's enough available stock
+  RETURN available_stock >= requested_quantity;
+END;
+$$;
+
+-- Function to safely update milk stock
+CREATE OR REPLACE FUNCTION public.update_milk_stock_safe(
+  add_quantity NUMERIC
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  current_stock NUMERIC;
+BEGIN
+  -- Get current stock
+  SELECT total_stock INTO current_stock FROM milk_stock;
+  
+  -- Update the stock
+  IF current_stock IS NULL THEN
+    INSERT INTO milk_stock (total_stock) VALUES (add_quantity);
+  ELSE
+    UPDATE milk_stock SET total_stock = total_stock + add_quantity;
+  END IF;
+  
+  RETURN TRUE;
+END;
+$$;

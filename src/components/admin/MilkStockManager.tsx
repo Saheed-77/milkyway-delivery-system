@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -44,32 +45,18 @@ export const MilkStockManager = () => {
       let reservationData: StockReservation[] | null = null;
       
       try {
-        // Try using a generic query that's safe even if the table doesn't exist yet
-        const result = await supabase
-          .rpc('check_stock_availability', { requested_quantity: 0 });
+        // Try fetching reservations directly from the table
+        const { data, error } = await supabase
+          .from('stock_reservations')
+          .select('*')
+          .order('reservation_date', { ascending: false })
+          .limit(1);
           
-        // Now try to get the reservations - this is a direct query approach
-        const { data, error } = await supabase.rpc('get_stock_reservations');
-        
         if (!error && data) {
           reservationData = data as StockReservation[];
-        } else {
-          console.log("Using fallback method to get reservations");
-          // Direct query approach might fail if table doesn't exist or RPC isn't created
-          // Use direct SQL query via function instead
-          const { data: rawData, error: rawError } = await supabase
-            .from('stock_reservations')
-            .select('*')
-            .order('reservation_date', { ascending: false })
-            .limit(1) as { data: StockReservation[] | null, error: any };
-            
-          if (!rawError) {
-            reservationData = rawData;
-          }
         }
       } catch (err) {
         console.log("Error fetching reservations:", err);
-        // Table might not exist yet, we'll handle this below
       }
       
       // Calculate daily subscription demand
@@ -153,26 +140,16 @@ export const MilkStockManager = () => {
       const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
       
       try {
-        // Try to insert a reservation - use SQL instead of relying on types
-        const { error: insertError } = await supabase
-          .rpc('create_stock_reservation', { 
-            res_date: tomorrow,
-            res_amount: subscriptionDemand,
-            res_type: "subscription" 
+        // Insert a reservation directly into the table
+        const { error } = await supabase
+          .from('stock_reservations')
+          .insert({
+            reservation_date: tomorrow,
+            reserved_amount: subscriptionDemand,
+            reservation_type: "subscription"
           });
           
-        if (insertError) {
-          // Fallback to direct insert as any
-          const { error: fallbackError } = await supabase
-            .from('stock_reservations')
-            .insert({
-              reservation_date: tomorrow,
-              reserved_amount: subscriptionDemand,
-              reservation_type: "subscription"
-            } as any);
-            
-          if (fallbackError) throw fallbackError;
-        }
+        if (error) throw error;
         
         toast({
           title: "Success",
@@ -185,7 +162,7 @@ export const MilkStockManager = () => {
         console.error("Error reserving stock:", error);
         toast({
           title: "Error",
-          description: "Failed to reserve stock. The stock_reservations table might need to be created first.",
+          description: "Failed to reserve stock",
           variant: "destructive"
         });
       }

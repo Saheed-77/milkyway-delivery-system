@@ -74,7 +74,7 @@ export const MilkContributionForm = ({ farmerId }: MilkContributionFormProps) =>
         .from("milk_contributions")
         .insert({
           farmer_id: farmerId,
-          quantity,
+          quantity: Number(quantity),
           milk_type: milkType,
           contribution_date: new Date().toISOString(),
           payment_id: paymentData[0].id

@@ -16,7 +16,6 @@ import { ShoppingBag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { StockReservation } from "@/types/milk";
 
-// Define an interface for the reservation data
 export const QuickOrderForm = ({ onOrderComplete }) => {
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -63,10 +62,10 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
         
       if (stockError) throw stockError;
       
-      // Try to use the RPC function
+      // Try to use the check_stock_availability function
       try {
         const { data: isAvailable, error: availabilityError } = await supabase
-          .rpc('check_stock_availability', { requested_quantity: quantity });
+          .rpc('check_stock_availability', { requested_quantity: Number(quantity) });
           
         if (!availabilityError) {
           return {
@@ -78,26 +77,18 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
         console.log("RPC check failed, using direct query");
       }
       
-      // If RPC fails, try to get reserved amount directly - handle safely if table doesn't exist
+      // If RPC fails, try to get reserved amount directly
       let reservedAmount = 0;
       
       try {
         const { data: reservations, error: reservationsError } = await supabase
-          .rpc('get_stock_reservations');
+          .from('stock_reservations')
+          .select('*')
+          .order('reservation_date', { ascending: false })
+          .limit(1);
           
         if (!reservationsError && reservations && reservations.length > 0) {
           reservedAmount = reservations[0].reserved_amount || 0;
-        } else {
-          // Try direct query as any to avoid type errors
-          const { data: rawReservations } = await supabase
-            .from('stock_reservations')
-            .select('*')
-            .order('reservation_date', { ascending: false })
-            .limit(1) as { data: any[] };
-            
-          if (rawReservations && rawReservations.length > 0) {
-            reservedAmount = rawReservations[0].reserved_amount || 0;
-          }
         }
       } catch (err) {
         console.log("No stock reservations found, checking against total stock");
@@ -169,7 +160,7 @@ export const QuickOrderForm = ({ onOrderComplete }) => {
         .insert({
           order_id: orderData.id,
           product_id: selectedProduct.id,
-          quantity: quantity,
+          quantity: Number(quantity),
           unit_price: selectedProduct.price,
         });
 
