@@ -128,10 +128,18 @@ export const DashboardContent = ({
           
           dailyDemand = Math.ceil(dailyDemand);
           
-          await supabase.rpc("create_stock_reservation", {
-            res_date: tomorrow.toISOString().split('T')[0],
-            res_amount: dailyDemand,
-            res_type: "subscription"
+          await fetch('https://upfvwlqxaaunzpgejhyo.supabase.co/rest/v1/rpc/create_stock_reservation', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwZnZ3bHF4YWF1bnpwZ2VqaHlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkzODEyOTQsImV4cCI6MjA1NDk1NzI5NH0.r0My6pZfp4vajWgXaCA5nAbtpJ671Vwwv5x38wtlNgw',
+              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwZnZ3bHF4YWF1bnpwZ2VqaHlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkzODEyOTQsImV4cCI6MjA1NDk1NzI5NH0.r0My6pZfp4vajWgXaCA5nAbtpJ671Vwwv5x38wtlNgw`
+            },
+            body: JSON.stringify({
+              res_date: tomorrow.toISOString().split('T')[0],
+              res_amount: dailyDemand,
+              res_type: 'subscription'
+            })
           });
         } catch (error) {
           console.error("Error auto-reserving stock:", error);

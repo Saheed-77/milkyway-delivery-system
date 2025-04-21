@@ -7,13 +7,7 @@ import { format } from 'date-fns';
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
-    internal: {
-      getNumberOfPages: () => number;
-      pageSize: {
-        width: number;
-        height: number;
-      };
-    };
+    internal: any; // Using any type to avoid TypeScript conflicts
   }
 }
 
