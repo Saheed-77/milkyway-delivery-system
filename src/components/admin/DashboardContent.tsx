@@ -1,4 +1,3 @@
-
 import {
   Card,
   CardContent,
@@ -78,9 +77,13 @@ export const DashboardContent = ({
         
         const { data, error } = await supabase
           .from("order_items")
-          .select("order_items.quantity, products.milk_type")
-          .join("products", { "order_items.product_id": "products.id" })
-          .gte("order_items.created_at", oneWeekAgo.toISOString());
+          .select(`
+            quantity, 
+            products!inner (
+              milk_type
+            )
+          `)
+          .gte("created_at", oneWeekAgo.toISOString());
           
         if (!error && data) {
           const totalOrdered = data.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
@@ -94,13 +97,47 @@ export const DashboardContent = ({
       // Call the auto-reserve function daily
       const autoReserveStock = async () => {
         try {
-          await supabase.rpc('auto_reserve_subscription_stock');
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          
+          const { data: subscriptionData } = await supabase
+            .from("subscriptions")
+            .select(`
+              quantity,
+              frequency
+            `)
+            .eq("status", "active");
+            
+          let dailyDemand = 0;
+          
+          subscriptionData?.forEach(subscription => {
+            const quantity = subscription.quantity || 0;
+            
+            switch(subscription.frequency) {
+              case 'daily':
+                dailyDemand += quantity;
+                break;
+              case 'weekly':
+                dailyDemand += quantity / 7;
+                break;
+              case 'monthly':
+                dailyDemand += quantity / 30;
+                break;
+            }
+          });
+          
+          dailyDemand = Math.ceil(dailyDemand);
+          
+          await supabase.rpc("create_stock_reservation", {
+            res_date: tomorrow.toISOString().split('T')[0],
+            res_amount: dailyDemand,
+            res_type: "subscription"
+          });
         } catch (error) {
           console.error("Error auto-reserving stock:", error);
         }
       };
       
-      // Schedule auto-reservation once at component mount
       autoReserveStock();
     }
   }, [activeSection]);
@@ -176,7 +213,6 @@ export const DashboardContent = ({
           </TabsList>
           
           <TabsContent value="approval" className="space-y-6">
-            {/* Pending Farmers */}
             <div>
               <FarmersList
                 title="Pending Registrations"
@@ -188,7 +224,6 @@ export const DashboardContent = ({
               />
             </div>
             
-            {/* Approved Farmers */}
             <div>
               <FarmersList
                 title="Approved Farmers"
@@ -198,7 +233,6 @@ export const DashboardContent = ({
               />
             </div>
 
-            {/* Blacklisted Farmers */}
             {blacklistedFarmers.length > 0 && (
               <div>
                 <FarmersList
@@ -213,14 +247,12 @@ export const DashboardContent = ({
           </TabsContent>
           
           <TabsContent value="registration">
-            {/* Farmers Registration Form */}
             <div>
               <FarmerRegistrationForm />
             </div>
           </TabsContent>
           
           <TabsContent value="payments">
-            {/* Farmer Payment Approval */}
             <div>
               <FarmerPaymentApproval />
             </div>
