@@ -1,25 +1,13 @@
-
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable'; // Ensure the plugin is imported
+
 import { format } from 'date-fns';
 
 // Add type definition for jsPDF with autotable
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
-    internal: {
-      events: PubSub;
-      scaleFactor: number;
-      pageSize: {
-        width: number;
-        getWidth: () => number;
-        height: number;
-        getHeight: () => number;
-      };
-      pages: number[];
-      getEncryptor(objectId: number): (data: string) => string;
-      getNumberOfPages: () => number;
-    };
+    internal: jsPDF['internal'];
   }
 }
 
@@ -82,9 +70,9 @@ export const generatePDF = (
     });
     return Object.values(row);
   });
-  
+
   // Generate table
-  doc.autoTable({
+  autoTable(doc, {
     head: [columns.map(col => col.header)],
     body: tableData,
     startY: subtitle ? 45 : 35,
@@ -101,10 +89,10 @@ export const generatePDF = (
       fillColor: [248, 247, 243],
     },
   });
-  
+
   // Add footer if provided
   if (footerText) {
-    const pageCount = doc.internal.getNumberOfPages();
+    const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
