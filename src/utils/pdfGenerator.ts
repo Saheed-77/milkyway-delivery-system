@@ -8,13 +8,25 @@ declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
     internal: {
-      getNumberOfPages: () => number;
+      events: PubSub;
+      scaleFactor: number;
       pageSize: {
         width: number;
+        getWidth: () => number;
         height: number;
+        getHeight: () => number;
       };
+      pages: number[];
+      getEncryptor(objectId: number): (data: string) => string;
+      getNumberOfPages: () => number; // Added this property
     };
   }
+}
+
+interface PubSub {
+  // Minimal PubSub interface - can be expanded if needed
+  subscribe: (event: string, callback: Function) => void;
+  publish: (event: string, data: any) => void;
 }
 
 interface Column {
