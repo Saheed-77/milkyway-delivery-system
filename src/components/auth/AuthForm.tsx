@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Eye, EyeOff, Check, X } from "lucide-react";
 
 interface AuthFormProps {
   userType: 'admin' | 'farmer' | 'customer' | 'delivery';
@@ -30,8 +32,19 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
   const [licenseNumber, setLicenseNumber] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Password validation criteria
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+  
+  const isPasswordValid = hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecialChar;
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +52,11 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
 
     try {
       if (isSignUp) {
+        // Check if password meets criteria
+        if (!isPasswordValid) {
+          throw new Error("Password doesn't meet the security requirements");
+        }
+        
         // Prepare user metadata based on user type
         const userMetadata: Record<string, any> = {
           user_type: userType,
@@ -133,6 +151,17 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
       setIsLoading(false);
     }
   };
+
+  const renderPasswordRequirement = (isValid: boolean, text: string) => (
+    <div className="flex items-center gap-2 text-sm">
+      {isValid ? (
+        <Check className="h-4 w-4 text-green-500" />
+      ) : (
+        <X className="h-4 w-4 text-red-500" />
+      )}
+      <span className={isValid ? "text-green-600" : "text-gray-600"}>{text}</span>
+    </div>
+  );
 
   const renderUserSpecificFields = () => {
     if (!isSignUp) return null;
@@ -261,22 +290,54 @@ export const AuthForm = ({ userType }: AuthFormProps) => {
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => {
+                if (!isSignUp) {
+                  setPasswordFocused(false);
+                }
+              }}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500"
+            >
+              {showPassword ? (
+                <EyeOff className="h-5 w-5" />
+              ) : (
+                <Eye className="h-5 w-5" />
+              )}
+            </button>
+          </div>
         </div>
+        
+        {isSignUp && (passwordFocused || password.length > 0) && (
+          <div className="p-3 bg-gray-50 rounded-md mb-2">
+            <p className="text-sm font-medium mb-2">Password must contain:</p>
+            <div className="space-y-1">
+              {renderPasswordRequirement(hasMinLength, "At least 8 characters")}
+              {renderPasswordRequirement(hasUppercase, "At least one uppercase letter")}
+              {renderPasswordRequirement(hasLowercase, "At least one lowercase letter")}
+              {renderPasswordRequirement(hasNumber, "At least one number")}
+              {renderPasswordRequirement(hasSpecialChar, "At least one special character")}
+            </div>
+          </div>
+        )}
         
         {renderUserSpecificFields()}
         
         <Button
           type="submit"
           className="w-full bg-[#437358] hover:bg-[#345c46]"
-          disabled={isLoading}
+          disabled={isLoading || (isSignUp && !isPasswordValid)}
         >
           {isLoading ? "Loading..." : isSignUp ? (userType === 'farmer' ? "Submit Registration" : "Sign Up") : "Login"}
         </Button>
