@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -17,7 +16,8 @@ import {
   Clock,
   Settings,
   BarChart3,
-  FileText
+  FileText,
+  Box
 } from "lucide-react";
 import {
   SidebarContent,
@@ -59,6 +59,7 @@ export const DashboardSidebar = ({
           { id: "collections", title: "Milk Collections", icon: Milk },
           { id: "orders", title: "Customer Orders", icon: MessageSquare },
           { id: "delivery", title: "Delivery Management", icon: Truck },
+          { id: "inventory", title: "Inventory Management", icon: Box },
           { id: "reports", title: "Reports", icon: BarChart3 },
         ];
       case "farmer":

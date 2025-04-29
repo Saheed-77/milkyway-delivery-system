@@ -14,6 +14,8 @@ import { MilkPricingForm } from "./MilkPricingForm";
 import { DeliverySummary } from "../delivery/DeliverySummary";
 import { Reports } from "./Reports";
 import { FarmerPaymentApproval } from "./FarmerPaymentApproval";
+import { StockManagement } from "./StockManagement";
+import { InventoryManagement } from "./InventoryManagement";
 import { Milk, ShoppingBag, UserCheck, UserPlus, BarChart3, CreditCard, List, PlusCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MilkStockManager } from "./MilkStockManager";
@@ -154,21 +156,9 @@ export const DashboardContent = ({
     case "dashboard":
       return (
         <div className="space-y-6">
+          <StockManagement />
+          <InventoryManagement />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Total Milk Stock</CardTitle>
-                <CardDescription>Current milk stock in liters</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{totalMilkStock} L</div>
-                <div className="flex items-center text-sm text-muted-foreground mt-2">
-                  <Milk className="w-4 h-4 mr-2" />
-                  <span>Updated daily</span>
-                </div>
-              </CardContent>
-            </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle>Weekly Orders</CardTitle>

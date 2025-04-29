@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,20 +11,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Milk } from "lucide-react";
+import { Milk, Calendar } from "lucide-react";
+import { Calendar as CalendarUI } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const MilkCollectionsList = () => {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState({
+    from: null,
+    to: null,
+  });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchCollections();
-  }, []);
+  }, [dateRange]);
 
   const fetchCollections = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      let query = supabase
         .from("milk_contributions")
         .select(`
           *,
@@ -37,6 +45,16 @@ export const MilkCollectionsList = () => {
           )
         `)
         .order("contribution_date", { ascending: false });
+
+      // Add date range filter if dates are selected
+      if (dateRange.from) {
+        query = query.gte("contribution_date", dateRange.from.toISOString().split('T')[0]);
+      }
+      if (dateRange.to) {
+        query = query.lte("contribution_date", dateRange.to.toISOString().split('T')[0]);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setCollections(data || []);
@@ -70,13 +88,61 @@ export const MilkCollectionsList = () => {
     return farmer.status || "Active";
   };
 
+  const clearDateFilter = () => {
+    setDateRange({ from: null, to: null });
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <Milk className="h-5 w-5 mr-2 text-[#437358]" />
-          Milk Collections
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center">
+            <Milk className="h-5 w-5 mr-2 text-[#437358]" />
+            Milk Collections
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !dateRange.from && "text-muted-foreground"
+                  )}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {dateRange.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "LLL dd, y")} -{" "}
+                        {format(dateRange.to, "LLL dd, y")}
+                      </>
+                    ) : (
+                      format(dateRange.from, "LLL dd, y")
+                    )
+                  ) : (
+                    <span>Pick a date range</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <CalendarUI
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+            {(dateRange.from || dateRange.to) && (
+              <Button variant="outline" onClick={clearDateFilter}>
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (

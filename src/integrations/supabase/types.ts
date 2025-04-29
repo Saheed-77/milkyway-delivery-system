@@ -461,6 +461,36 @@ export type Database = {
           },
         ]
       }
+      milk_stock_archive: {
+        Row: {
+          id: string;
+          date: string;
+          total_stock: number;
+          subscription_demand: number;
+          leftover_stock: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          date: string;
+          total_stock: number;
+          subscription_demand: number;
+          leftover_stock: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          date?: string;
+          total_stock?: number;
+          subscription_demand?: number;
+          leftover_stock?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     }
     Views: {
       milk_stock: {
@@ -479,6 +509,19 @@ export type Database = {
         Args: { add_quantity: number }
         Returns: boolean
       }
+      archive_and_reset_daily_stock: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      get_today_stock_summary: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          total_stock: number;
+          available_stock: number;
+          subscription_demand: number;
+          leftover_from_yesterday: number;
+        };
+      };
     }
     Enums: {
       delivery_status: "pending" | "delivered" | "rejected"

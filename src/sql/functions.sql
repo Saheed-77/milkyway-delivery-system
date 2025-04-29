@@ -1,4 +1,3 @@
-
 -- This file contains SQL functions that should be executed in the Supabase SQL editor
 
 -- Function to safely get stock reservations
@@ -134,5 +133,92 @@ BEGIN
   END IF;
   
   RETURN TRUE;
+END;
+$$;
+
+-- Function to archive and reset daily milk stock
+CREATE OR REPLACE FUNCTION public.archive_and_reset_daily_stock()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  current_stock NUMERIC;
+  yesterday_stock NUMERIC;
+  leftover_stock NUMERIC;
+  subscription_demand NUMERIC;
+BEGIN
+  -- Get current stock
+  SELECT total_stock INTO current_stock FROM milk_stock;
+  
+  -- Calculate subscription demand for today
+  SELECT COALESCE(SUM(
+    CASE 
+      WHEN frequency = 'daily' THEN quantity
+      WHEN frequency = 'weekly' THEN quantity / 7
+      WHEN frequency = 'monthly' THEN quantity / 30
+      ELSE 0
+    END
+  ), 0) INTO subscription_demand
+  FROM subscriptions
+  WHERE status = 'active';
+  
+  -- Calculate leftover stock (current stock - subscription demand)
+  leftover_stock := GREATEST(0, COALESCE(current_stock, 0) - COALESCE(subscription_demand, 0));
+  
+  -- Archive yesterday's stock
+  INSERT INTO milk_stock_archive (
+    date,
+    total_stock,
+    subscription_demand,
+    leftover_stock
+  ) VALUES (
+    CURRENT_DATE - 1,
+    COALESCE(current_stock, 0),
+    COALESCE(subscription_demand, 0),
+    leftover_stock
+  );
+  
+  -- Reset current stock to leftover amount
+  UPDATE milk_stock SET total_stock = leftover_stock;
+  
+  RETURN TRUE;
+END;
+$$;
+
+-- Function to get today's stock summary
+CREATE OR REPLACE FUNCTION public.get_today_stock_summary()
+RETURNS TABLE (
+  total_stock NUMERIC,
+  available_stock NUMERIC,
+  subscription_demand NUMERIC,
+  leftover_from_yesterday NUMERIC
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Get current stock
+  SELECT total_stock INTO total_stock FROM milk_stock;
+  
+  -- Get subscription demand
+  SELECT COALESCE(SUM(
+    CASE 
+      WHEN frequency = 'daily' THEN quantity
+      WHEN frequency = 'weekly' THEN quantity / 7
+      WHEN frequency = 'monthly' THEN quantity / 30
+      ELSE 0
+    END
+  ), 0) INTO subscription_demand
+  FROM subscriptions
+  WHERE status = 'active';
+  
+  -- Get leftover from yesterday
+  SELECT COALESCE(leftover_stock, 0) INTO leftover_from_yesterday
+  FROM milk_stock_archive
+  WHERE date = CURRENT_DATE - 1;
+  
+  -- Calculate available stock
+  available_stock := GREATEST(0, COALESCE(total_stock, 0) - COALESCE(subscription_demand, 0));
+  
+  RETURN NEXT;
 END;
 $$;
