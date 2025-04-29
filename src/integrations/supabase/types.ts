@@ -491,6 +491,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      milk_stock: {
+        Row: {
+          id: string;
+          date: string;
+          total_stock: number;
+          available_stock: number;
+          subscription_demand: number;
+          leftover_milk: number;
+          created_at?: string;
+        };
+        Insert: {
+          id?: string;
+          date: string;
+          total_stock: number;
+          available_stock: number;
+          subscription_demand?: number;
+          leftover_milk?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          date?: string;
+          total_stock?: number;
+          available_stock?: number;
+          subscription_demand?: number;
+          leftover_milk?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     }
     Views: {
       milk_stock: {

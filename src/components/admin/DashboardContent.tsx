@@ -37,6 +37,9 @@ interface DashboardContentProps {
   pendingFarmers: FarmerProfile[];
   approvedFarmers: FarmerProfile[];
   totalMilkStock: number;
+  availableStock?: number;
+  soldStock?: number;
+  subscriptionDemand?: number;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
 }
@@ -46,6 +49,9 @@ export const DashboardContent = ({
   pendingFarmers,
   approvedFarmers,
   totalMilkStock,
+  availableStock = 0,
+  soldStock = 0,
+  subscriptionDemand = 0,
   onApprove,
   onReject,
 }: DashboardContentProps) => {
@@ -157,7 +163,6 @@ export const DashboardContent = ({
       return (
         <div className="space-y-6">
           <StockManagement />
-          <InventoryManagement />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
@@ -244,19 +249,17 @@ export const DashboardContent = ({
             )}
           </TabsContent>
           
-          <TabsContent value="registration">
-            <div>
-              <FarmerRegistrationForm />
-            </div>
+          <TabsContent value="registration" className="space-y-6">
+            <FarmerRegistrationForm />
           </TabsContent>
           
-          <TabsContent value="payments">
-            <div>
-              <FarmerPaymentApproval />
-            </div>
+          <TabsContent value="payments" className="space-y-6">
+            <FarmerPaymentApproval />
           </TabsContent>
         </Tabs>
       );
+    case "inventory":
+      return <InventoryManagement />;
     case "collections":
       return (
         <div className="space-y-6">
