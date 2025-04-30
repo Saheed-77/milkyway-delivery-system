@@ -3,6 +3,8 @@ import autoTable from 'jspdf-autotable'; // Ensure the plugin is imported
 
 import { format } from 'date-fns';
 
+// Ensure the plugin is properly integrated with jsPDF
+
 // Add type definition for jsPDF with autotable
 declare module 'jspdf' {
   interface jsPDF {
