@@ -30,6 +30,11 @@ interface FarmerProfile {
   farm_name?: string;
   farm_location?: string;
   production_capacity?: number;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  address?: string;
+  farmer_id?: string;
 }
 
 interface DashboardContentProps {

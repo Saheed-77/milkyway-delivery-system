@@ -16,6 +16,11 @@ interface FarmerProfile {
   farm_name?: string;
   farm_location?: string;
   production_capacity?: number;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  address?: string;
+  farmer_id?: string;
 }
 
 // Add a proper interface for the milk_stock table
@@ -164,10 +169,15 @@ const AdminDashboard = () => {
         email,
         status,
         created_at,
+        first_name,
+        last_name,
+        phone,
+        address,
         farmers (
           farm_name,
           farm_location,
-          production_capacity
+          production_capacity,
+          farmer_id
         )
       `)
       .eq("user_type", "farmer")
@@ -189,9 +199,14 @@ const AdminDashboard = () => {
         email: f.email || '',
         status: f.status || 'pending',
         created_at: f.created_at,
+        first_name: f.first_name || '',
+        last_name: f.last_name || '',
+        phone: f.phone || '',
+        address: f.address || '',
         farm_name: f.farmers?.[0]?.farm_name,
         farm_location: f.farmers?.[0]?.farm_location,
         production_capacity: f.farmers?.[0]?.production_capacity,
+        farmer_id: f.farmers?.[0]?.farmer_id?.toString()
       }));
 
       setPendingFarmers(transformedFarmers.filter(f => f.status === 'pending'));
