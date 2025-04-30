@@ -14,6 +14,8 @@ import { MilkPricingForm } from "./MilkPricingForm";
 import { DeliverySummary } from "../delivery/DeliverySummary";
 import { Reports } from "./Reports";
 import { FarmerPaymentApproval } from "./FarmerPaymentApproval";
+import { StockManagement } from "./StockManagement";
+import { InventoryManagement } from "./InventoryManagement";
 import { Milk, ShoppingBag, UserCheck, UserPlus, BarChart3, CreditCard, List, PlusCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MilkStockManager } from "./MilkStockManager";
@@ -28,6 +30,11 @@ interface FarmerProfile {
   farm_name?: string;
   farm_location?: string;
   production_capacity?: number;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  address?: string;
+  farmer_id?: string;
 }
 
 interface DashboardContentProps {
@@ -35,6 +42,9 @@ interface DashboardContentProps {
   pendingFarmers: FarmerProfile[];
   approvedFarmers: FarmerProfile[];
   totalMilkStock: number;
+  availableStock?: number;
+  soldStock?: number;
+  subscriptionDemand?: number;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
 }
@@ -44,6 +54,9 @@ export const DashboardContent = ({
   pendingFarmers,
   approvedFarmers,
   totalMilkStock,
+  availableStock = 0,
+  soldStock = 0,
+  subscriptionDemand = 0,
   onApprove,
   onReject,
 }: DashboardContentProps) => {
@@ -154,21 +167,8 @@ export const DashboardContent = ({
     case "dashboard":
       return (
         <div className="space-y-6">
+          <StockManagement />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Total Milk Stock</CardTitle>
-                <CardDescription>Current milk stock in liters</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{totalMilkStock} L</div>
-                <div className="flex items-center text-sm text-muted-foreground mt-2">
-                  <Milk className="w-4 h-4 mr-2" />
-                  <span>Updated daily</span>
-                </div>
-              </CardContent>
-            </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle>Weekly Orders</CardTitle>
@@ -254,19 +254,17 @@ export const DashboardContent = ({
             )}
           </TabsContent>
           
-          <TabsContent value="registration">
-            <div>
-              <FarmerRegistrationForm />
-            </div>
+          <TabsContent value="registration" className="space-y-6">
+            <FarmerRegistrationForm />
           </TabsContent>
           
-          <TabsContent value="payments">
-            <div>
-              <FarmerPaymentApproval />
-            </div>
+          <TabsContent value="payments" className="space-y-6">
+            <FarmerPaymentApproval />
           </TabsContent>
         </Tabs>
       );
+    case "inventory":
+      return <InventoryManagement />;
     case "collections":
       return (
         <div className="space-y-6">

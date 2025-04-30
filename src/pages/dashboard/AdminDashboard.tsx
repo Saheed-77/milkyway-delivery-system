@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,10 +16,38 @@ interface FarmerProfile {
   farm_name?: string;
   farm_location?: string;
   production_capacity?: number;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  address?: string;
+  farmer_id?: string;
+}
+
+// Add a proper interface for the milk_stock table
+interface MilkStockRecord {
+  total_stock: number;
+  available_stock: number;
+  subscription_demand: number;
+  leftover_milk: number;
+  date: string;
 }
 
 interface MilkStock {
   total_stock: number;
+  available_stock?: number;
+  sold_stock?: number;
+  subscription_demand?: number;
+}
+
+// Add new types to support the new inventory tables
+declare module '@supabase/supabase-js' {
+  interface SupabaseClient {
+    rpc<T = any>(
+      fn: string,
+      params?: object,
+      options?: { head?: boolean, count?: null | 'exact' | 'planned' | 'estimated' }
+    ): { data: T; error: Error | null };
+  }
 }
 
 const AdminDashboard = () => {
@@ -30,6 +57,9 @@ const AdminDashboard = () => {
   const [approvedFarmers, setApprovedFarmers] = useState<FarmerProfile[]>([]);
   const [activeSection, setActiveSection] = useState("dashboard");
   const [totalMilkStock, setTotalMilkStock] = useState<number>(0);
+  const [availableStock, setAvailableStock] = useState<number>(0);
+  const [soldStock, setSoldStock] = useState<number>(0);
+  const [subscriptionDemand, setSubscriptionDemand] = useState<number>(0);
   const [adminProfile, setAdminProfile] = useState<any>(null);
 
   useEffect(() => {
@@ -60,23 +90,73 @@ const AdminDashboard = () => {
   }, [navigate]);
 
   const loadMilkStock = async () => {
-    const { data, error } = await supabase
-      .from('milk_stock')
-      .select('*')
-      .single();
+    try {
+      // Try to get today's stock summary first
+      const { data: summaryData, error: summaryError } = await supabase
+        .rpc('get_today_stock_summary');
+      
+      if (!summaryError && Array.isArray(summaryData) && summaryData.length > 0) {
+        const summary = summaryData[0];
+        setTotalMilkStock(summary.total_stock || 0);
+        setAvailableStock(summary.available_stock || 0);
+        setSoldStock(summary.sold_stock || 0);
+        setSubscriptionDemand(summary.subscription_demand || 0);
+        return;
+      }
+      
+      // Fallback to getting latest milk stock directly
+      const { data: latestStockData, error: latestStockError } = await supabase
+        .rpc('get_latest_milk_stock');
+        
+      if (!latestStockError && Array.isArray(latestStockData) && latestStockData.length > 0) {
+        const latestStock = latestStockData[0] as MilkStockRecord;
+        setTotalMilkStock(latestStock.total_stock || 0);
+        setAvailableStock(latestStock.available_stock || 0);
+        setSubscriptionDemand(latestStock.subscription_demand || 0);
+        return;
+      }
+      
+      // Final fallback to regular stock query if both functions fail
+      const { data, error } = await supabase
+        .from('milk_stock')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(1);
 
-    if (error) {
-      console.error("Error loading milk stock:", error);
+      if (error) {
+        console.error("Error loading milk stock:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load milk stock",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const stockRecord = data[0] as MilkStockRecord;
+        setTotalMilkStock(stockRecord.total_stock || 0);
+        setAvailableStock(stockRecord.available_stock || 0);
+        setSubscriptionDemand(stockRecord.subscription_demand || 0);
+      } else {
+        // Set default values when no data is found
+        setTotalMilkStock(0);
+        setAvailableStock(0);
+        setSoldStock(0);
+        setSubscriptionDemand(0);
+      }
+    } catch (error) {
+      console.error("Error in loadMilkStock:", error);
       toast({
         title: "Error",
-        description: "Failed to load milk stock",
+        description: "Failed to load milk stock data",
         variant: "destructive",
       });
-      return;
-    }
-
-    if (data) {
-      setTotalMilkStock(data.total_stock);
+      // Set default values on error
+      setTotalMilkStock(0);
+      setAvailableStock(0);
+      setSoldStock(0);
+      setSubscriptionDemand(0);
     }
   };
 
@@ -89,10 +169,15 @@ const AdminDashboard = () => {
         email,
         status,
         created_at,
+        first_name,
+        last_name,
+        phone,
+        address,
         farmers (
           farm_name,
           farm_location,
-          production_capacity
+          production_capacity,
+          farmer_id
         )
       `)
       .eq("user_type", "farmer")
@@ -114,9 +199,14 @@ const AdminDashboard = () => {
         email: f.email || '',
         status: f.status || 'pending',
         created_at: f.created_at,
+        first_name: f.first_name || '',
+        last_name: f.last_name || '',
+        phone: f.phone || '',
+        address: f.address || '',
         farm_name: f.farmers?.[0]?.farm_name,
         farm_location: f.farmers?.[0]?.farm_location,
         production_capacity: f.farmers?.[0]?.production_capacity,
+        farmer_id: f.farmers?.[0]?.farmer_id?.toString()
       }));
 
       setPendingFarmers(transformedFarmers.filter(f => f.status === 'pending'));
@@ -179,6 +269,9 @@ const AdminDashboard = () => {
                   pendingFarmers={pendingFarmers}
                   approvedFarmers={approvedFarmers}
                   totalMilkStock={totalMilkStock}
+                  availableStock={availableStock}
+                  soldStock={soldStock}
+                  subscriptionDemand={subscriptionDemand}
                   onApprove={(id) => handleFarmerStatus(id, 'approved')}
                   onReject={(id) => handleFarmerStatus(id, 'rejected')}
                 />

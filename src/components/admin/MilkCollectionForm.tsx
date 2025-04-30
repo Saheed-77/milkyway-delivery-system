@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -31,6 +30,15 @@ import { AlertTriangle } from "lucide-react";
 interface FarmerOffense {
   count: number;
   lastDate: string;
+}
+
+// Define the milk_stock table interface to match DB schema
+interface MilkStockRecord {
+  date: string;
+  total_stock: number;
+  available_stock: number;
+  subscription_demand: number;
+  leftover_milk: number;
 }
 
 export const MilkCollectionForm = () => {
@@ -232,21 +240,118 @@ export const MilkCollectionForm = () => {
         throw contributionError;
       }
 
-      // Update milk stock - fix TypeScript error by explicitly using Number
-      const { error: stockError } = await supabase
-        .rpc("update_milk_stock_safe", { 
-          add_quantity: Number(quantity) 
+      // Update milk stock directly in the milk_stock table
+      const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+      
+      try {
+        // First try to get current milk_stock for today
+        const { data: existingStockData, error: stockFetchError } = await supabase
+          .from('milk_stock')
+          .select('id, total_stock, available_stock') // Only select needed fields
+          .eq('date', today)
+          .maybeSingle();
+          
+        if (stockFetchError) {
+          console.error("Error fetching milk stock:", stockFetchError);
+          throw new Error("Failed to fetch current milk stock");
+        }
+        
+        if (existingStockData) {
+          // Update existing stock record
+          const stock = existingStockData as unknown as MilkStockRecord;
+          const newTotal = (stock.total_stock || 0) + Number(quantity);
+          const newAvailable = (stock.available_stock || 0) + Number(quantity);
+          
+          const { error: updateError } = await supabase
+            .from('milk_stock')
+            .update({
+              total_stock: newTotal,
+              available_stock: newAvailable
+            })
+            .eq('date', today);
+            
+          if (updateError) {
+            console.error("Error updating milk stock:", updateError);
+            throw new Error("Failed to update milk stock");
+          }
+          
+          console.log(`Updated milk stock for ${today}: total=${newTotal}L, available=${newAvailable}L`);
+        } else {
+          // Create new stock record for today
+          const newStockData = {
+            date: today,
+            total_stock: Number(quantity),
+            available_stock: Number(quantity),
+            subscription_demand: 0,
+            leftover_milk: 0
+          };
+          
+          const { error: insertError } = await supabase
+            .from('milk_stock')
+            .insert(newStockData as any);
+            
+          if (insertError) {
+            console.error("Error creating milk stock:", insertError);
+            throw new Error("Failed to create milk stock record");
+          }
+          
+          console.log(`Created new milk stock for ${today} with ${quantity}L`);
+        }
+
+        // Update the corresponding product's stock quantity
+        const { data: productData, error: productError } = await supabase
+          .from('products')
+          .select('id, stock_quantity')
+          .eq('milk_type', milkType)
+          .single();
+
+        if (productError) {
+          console.error("Error fetching product:", productError);
+          throw new Error("Failed to fetch product information");
+        }
+
+        if (productData) {
+          const newStockQuantity = (productData.stock_quantity || 0) + Number(quantity);
+          
+          const { error: updateProductError } = await supabase
+            .from('products')
+            .update({ stock_quantity: newStockQuantity })
+            .eq('id', productData.id);
+
+          if (updateProductError) {
+            console.error("Error updating product stock:", updateProductError);
+            throw new Error("Failed to update product stock");
+          }
+
+          console.log(`Updated product stock for ${milkType} milk: new quantity=${newStockQuantity}L`);
+        }
+      
+        // Try to update the upsert_milk_stock RPC for compatibility with other components
+        try {
+          await supabase
+            .rpc('upsert_milk_stock', {
+              stock_date: today,
+              new_total_stock: Number(quantity),
+            });
+        } catch (rpcError) {
+          // Just log this error, don't throw, as we've already updated the table directly
+          console.log("RPC call failed, but direct table update succeeded", rpcError);
+        }
+        
+        toast({
+          title: "Success!",
+          description: "Milk collection and payment record created successfully.",
         });
-
-      if (stockError) {
+        
+      } catch (stockError) {
+        // Just show a warning but don't prevent submission
         console.error("Error updating milk stock:", stockError);
-        throw stockError;
+        toast({
+          title: "Success with Warning",
+          description: "Milk collection recorded, but stock update may be incomplete. Refresh the page to see latest data.",
+          variant: "default",
+        });
       }
-
-      toast({
-        title: "Success!",
-        description: "Milk collection and payment record created successfully.",
-      });
 
       // Reset form
       setFarmerId("");

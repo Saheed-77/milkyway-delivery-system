@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,8 +6,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Calendar } from "lucide-react";
 import { generatePDF, formatCurrency } from "@/utils/pdfGenerator";
+import { DateRange } from "react-day-picker";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarUI } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 interface MilkContribution {
   id: string;
@@ -29,8 +32,10 @@ interface ContributionHistoryProps {
 export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
   const { toast } = useToast();
   const [contributions, setContributions] = useState<MilkContribution[]>([]);
+  const [filteredContributions, setFilteredContributions] = useState<MilkContribution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingPayments, setPendingPayments] = useState<number>(0);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   useEffect(() => {
     if (!farmerId) return;
@@ -65,6 +70,7 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
         })) || [];
         
         setContributions(transformedData);
+        setFilteredContributions(transformedData);
 
         // Calculate pending payments
         const pending = transformedData.filter(c => c.payment_status === 'pending');
@@ -84,6 +90,20 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
     fetchContributions();
   }, [farmerId, toast]);
 
+  useEffect(() => {
+    if (!dateRange?.from || !dateRange?.to) {
+      setFilteredContributions(contributions);
+      return;
+    }
+
+    const filtered = contributions.filter(contribution => {
+      const contributionDate = new Date(contribution.contribution_date);
+      return contributionDate >= dateRange.from! && contributionDate <= dateRange.to!;
+    });
+
+    setFilteredContributions(filtered);
+  }, [dateRange, contributions]);
+
   const handleExportPDF = () => {
     const columns = [
       { header: 'Date', dataKey: 'date' },
@@ -95,7 +115,7 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
       { header: 'Payment', dataKey: 'payment' },
     ];
     
-    const data = contributions.map(contribution => {
+    const data = filteredContributions.map(contribution => {
       const pricePerLiter = contribution.quantity > 0 ? contribution.price / contribution.quantity : 0;
       let quality = 'Pending';
       if (contribution.quality_rating === 1) quality = 'A (Excellent)';
@@ -131,7 +151,7 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
     );
   }
 
-  if (contributions.length === 0) {
+  if (filteredContributions.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         No contributions recorded yet. Contact an administrator to record your contributions.
@@ -188,20 +208,68 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
   return (
     <div>
       <div className="flex justify-between mb-4">
-        {pendingPayments > 0 && (
-          <div className="text-sm text-amber-600 font-medium">
-            Pending Payments: {formatCurrency(pendingPayments)}
-          </div>
-        )}
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="ml-auto flex items-center gap-1" 
-          onClick={handleExportPDF}
-        >
-          <Download className="h-4 w-4" />
-          Export PDF
-        </Button>
+        <div className="flex items-center gap-4">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-[300px] justify-start text-left font-normal",
+                  !dateRange && "text-muted-foreground"
+                )}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y")} -{" "}
+                      {format(dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Pick a date range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-white" align="start">
+              <CalendarUI
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+          {dateRange && (
+            <Button
+              variant="ghost"
+              onClick={() => setDateRange(undefined)}
+              className="h-10 px-3"
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          {pendingPayments > 0 && (
+            <div className="text-sm text-amber-600 font-medium">
+              Pending Payments: {formatCurrency(pendingPayments)}
+            </div>
+          )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1" 
+            onClick={handleExportPDF}
+          >
+            <Download className="h-4 w-4" />
+            Export PDF
+          </Button>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <Table>
@@ -217,7 +285,7 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {contributions.map((contribution) => (
+            {filteredContributions.map((contribution) => (
               <TableRow 
                 key={contribution.id}
                 className={contribution.quality_rating === 3 ? "bg-red-50" : ""}
