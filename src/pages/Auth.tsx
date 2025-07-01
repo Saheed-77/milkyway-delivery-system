@@ -1,49 +1,33 @@
-
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AuthForm } from "@/components/auth/AuthForm";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useAuth, type UserRole } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/layout/Navbar";
+
+const VALID_TYPES: UserRole[] = ["admin", "farmer", "customer", "delivery"];
 
 const Auth = () => {
   const { userType } = useParams<{ userType: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { session, profile, isLoading } = useAuth();
+
+  const isValidType = VALID_TYPES.includes(userType as UserRole);
 
   useEffect(() => {
-    const checkAuthAndUserType = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        // Get user profile to check user type
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("user_type")
-          .eq("id", session.user.id)
-          .single();
-
-        if (profile?.user_type !== userType) {
-          // If user is logged in but trying to access wrong auth page, log them out
-          await supabase.auth.signOut();
-          toast({
-            title: "Access Denied",
-            description: "Please log in with the correct user type.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // If user is already logged in with correct type, redirect to dashboard
-        navigate(`/dashboard/${profile.user_type}`);
+    // Already signed in with a matching role -> go straight to the dashboard.
+    if (!isLoading && session && profile && profile.user_type === userType) {
+      if (profile.user_type !== "farmer" || profile.status === "approved") {
+        navigate(`/dashboard/${profile.user_type}`, { replace: true });
       }
-    };
+    }
+  }, [isLoading, session, profile, userType, navigate]);
 
-    checkAuthAndUserType();
-  }, [navigate, userType, toast]);
-
-  if (!["admin", "farmer", "customer", "delivery"].includes(userType)) {
-    return <div>Invalid user type</div>;
+  if (!isValidType) {
+    return (
+      <div className="min-h-screen bg-[#f8f7f3] flex items-center justify-center">
+        <p className="text-muted-foreground">Invalid login page.</p>
+      </div>
+    );
   }
 
   return (
@@ -52,7 +36,7 @@ const Auth = () => {
         <Navbar />
       </div>
       <div className="flex-1 flex items-center justify-center">
-        <AuthForm userType={userType as "admin" | "farmer" | "customer" | "delivery"} />
+        <AuthForm userType={userType as UserRole} />
       </div>
     </div>
   );
