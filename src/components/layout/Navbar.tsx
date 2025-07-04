@@ -20,7 +20,7 @@ interface NavbarProps {
 }
 
 export const Navbar = ({ showAuthButtons = true }: NavbarProps) => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<import("@supabase/supabase-js").User | null>(null);
   const [userType, setUserType] = useState<string | null>(null);
   const location = useLocation();
 

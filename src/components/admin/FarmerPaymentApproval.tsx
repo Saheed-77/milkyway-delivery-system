@@ -1,7 +1,7 @@
-
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { reviewFarmerPayment } from "@/lib/rpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Clock, X, FileText, Download } from "lucide-react";
@@ -14,7 +14,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { generatePDF, formatCurrency } from "@/utils/pdfGenerator";
+import { generatePDF } from "@/utils/pdfGenerator";
+
+interface Contribution {
+  id: string;
+  quantity: number;
+  milk_type: string;
+  contribution_date: string;
+}
 
 interface FarmerPayment {
   id: string;
@@ -22,83 +29,68 @@ interface FarmerPayment {
   status: string;
   payment_date: string;
   created_at: string;
+  farmer_id: string;
   farmer: {
     email: string;
-    first_name: string;
-    last_name: string;
-  };
-  farmer_id?: string;
-  contributions?: {
-    id: string;
-    quantity: number;
-    milk_type: string;
-    contribution_date: string;
-  }[];
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+  contributions: Contribution[];
 }
 
 export const FarmerPaymentApproval = () => {
   const [payments, setPayments] = useState<FarmerPayment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchPayments();
-  }, []);
-
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     try {
-      // Fetch payments with farmer profiles
       const { data: paymentsData, error: paymentsError } = await supabase
         .from("farmer_payments")
-        .select(`
+        .select(
+          `
           *,
           farmer:profiles!farmer_id (
             email,
             first_name,
             last_name
           )
-        `)
+        `
+        )
         .order("created_at", { ascending: false });
 
       if (paymentsError) throw paymentsError;
-      
-      // For each payment, fetch the linked contributions or unpaid contributions
-      const paymentsWithContributions = await Promise.all(
-        (paymentsData || []).map(async (payment) => {
-          // First check for already linked contributions
-          const { data: linkedContributions, error: linkedError } = await supabase
-            .from("milk_contributions")
-            .select("id, quantity, milk_type, contribution_date")
-            .eq("payment_id", payment.id);
-          
-          if (linkedError) {
-            console.error("Error fetching linked contributions:", linkedError);
-          }
-          
-          // If we don't have linked contributions, try to find unlinked ones
-          // that could be associated with this payment
-          if (!linkedContributions || linkedContributions.length === 0) {
-            const { data: unlinkedContributions, error: unlinkedError } = await supabase
-              .from("milk_contributions")
-              .select("id, quantity, milk_type, contribution_date")
-              .eq("farmer_id", payment.farmer_id)
-              .is("payment_id", null)
-              .order("contribution_date", { ascending: true });
-            
-            if (unlinkedError) {
-              console.error("Error fetching unlinked contributions:", unlinkedError);
-              return { ...payment, contributions: [] };
-            }
-            
-            return { ...payment, contributions: unlinkedContributions || [] };
-          }
-          
-          return { ...payment, contributions: linkedContributions || [] };
-        })
-      );
 
-      setPayments(paymentsWithContributions || []);
+      const paymentIds = (paymentsData ?? []).map((p) => p.id);
+      let contributionsByPayment = new Map<string, Contribution[]>();
+
+      if (paymentIds.length > 0) {
+        // Single query instead of N+1. Contributions are linked to a payment
+        // at request time by the request_farmer_payment RPC.
+        const { data: contributions, error: contribError } = await supabase
+          .from("milk_contributions")
+          .select("id, quantity, milk_type, contribution_date, payment_id")
+          .in("payment_id", paymentIds);
+
+        if (contribError) {
+          console.error("Error fetching contributions:", contribError);
+        } else {
+          contributionsByPayment = (contributions ?? []).reduce((map, c) => {
+            const list = map.get(c.payment_id as string) ?? [];
+            list.push(c as unknown as Contribution);
+            map.set(c.payment_id as string, list);
+            return map;
+          }, new Map<string, Contribution[]>());
+        }
+      }
+
+      setPayments(
+        (paymentsData ?? []).map((p) => ({
+          ...(p as unknown as Omit<FarmerPayment, "contributions">),
+          contributions: contributionsByPayment.get(p.id) ?? [],
+        }))
+      );
     } catch (error) {
       console.error("Error fetching payments:", error);
       toast({
@@ -109,61 +101,37 @@ export const FarmerPaymentApproval = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const updatePaymentStatus = async (paymentId, status) => {
-    setIsProcessing(true);
+  useEffect(() => {
+    void fetchPayments();
+  }, [fetchPayments]);
+
+  const handleReview = async (paymentId: string, approve: boolean) => {
+    setProcessingId(paymentId);
     try {
-      const payment = payments.find(p => p.id === paymentId);
-      
-      // First update the payment status
-      const { error } = await supabase
-        .from("farmer_payments")
-        .update({ status })
-        .eq("id", paymentId);
-
-      if (error) throw error;
-      
-      // If approved, link the contributions to this payment
-      if (status === "approved" && payment?.contributions?.length > 0) {
-        for (const contribution of payment.contributions) {
-          const { error: updateError } = await supabase
-            .from("milk_contributions")
-            .update({ payment_id: paymentId })
-            .eq("id", contribution.id);
-          
-          if (updateError) {
-            console.error(`Error linking contribution ${contribution.id}:`, updateError);
-          }
-        }
-      }
-
-      // Update the payments list
-      setPayments(payments.map(payment => 
-        payment.id === paymentId ? { ...payment, status } : payment
-      ));
+      // Atomic server-side review: status change, contribution linking and
+      // the farmer's wallet credit happen in one transaction, admin-only.
+      await reviewFarmerPayment(paymentId, approve);
 
       toast({
-        title: status === "approved" ? "Payment Approved" : "Payment Rejected",
-        description: `The payment has been ${status}.`,
+        title: approve ? "Payment Approved" : "Payment Rejected",
+        description: approve
+          ? "The payment was approved and credited to the farmer's wallet."
+          : "The payment was rejected and its contributions were released.",
       });
-      
-      // Refresh the payments data
-      fetchPayments();
-      
+
+      await fetchPayments();
     } catch (error) {
-      console.error("Error updating payment status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update payment status. Please try again.",
-        variant: "destructive",
-      });
+      const message =
+        error instanceof Error ? error.message : "Failed to update payment status.";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
-      setIsProcessing(false);
+      setProcessingId(null);
     }
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case "approved":
         return <CheckCircle className="h-5 w-5 text-green-500" />;
@@ -174,50 +142,43 @@ export const FarmerPaymentApproval = () => {
     }
   };
 
-  const formatCurrencyValue = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2
+  const formatCurrencyValue = (amount: number) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 2,
     }).format(amount);
-  };
 
   const handleExportPDF = () => {
     const columns = [
-      { header: 'Farmer', dataKey: 'farmer' },
-      { header: 'Amount', dataKey: 'amount' },
-      { header: 'Date', dataKey: 'date' },
-      { header: 'Status', dataKey: 'status' },
-      { header: 'Contributions', dataKey: 'contributions' },
+      { header: "Farmer", dataKey: "farmer" },
+      { header: "Amount", dataKey: "amount" },
+      { header: "Date", dataKey: "date" },
+      { header: "Status", dataKey: "status" },
+      { header: "Contributions", dataKey: "contributions" },
     ];
-    
-    const data = payments.map(payment => {
-      return {
-        farmer: `${payment.farmer?.first_name || ''} ${payment.farmer?.last_name || ''}`.trim(),
-        amount: formatCurrencyValue(payment.amount),
-        date: format(new Date(payment.payment_date), "MMM dd, yyyy"),
-        status: payment.status.charAt(0).toUpperCase() + payment.status.slice(1),
-        contributions: payment.contributions?.length || 0
-      };
-    });
-    
-    // Calculate total by status
+
+    const data = payments.map((payment) => ({
+      farmer: `${payment.farmer?.first_name || ""} ${payment.farmer?.last_name || ""}`.trim(),
+      amount: formatCurrencyValue(payment.amount),
+      date: format(new Date(payment.payment_date), "MMM dd, yyyy"),
+      status: payment.status.charAt(0).toUpperCase() + payment.status.slice(1),
+      contributions: payment.contributions.length,
+    }));
+
     const totalPending = payments
-      .filter(p => p.status === 'pending')
+      .filter((p) => p.status === "pending")
       .reduce((sum, p) => sum + p.amount, 0);
-    
     const totalApproved = payments
-      .filter(p => p.status === 'approved')
+      .filter((p) => p.status === "approved")
       .reduce((sum, p) => sum + p.amount, 0);
-    
-    const subtitle = `Total Pending: ${formatCurrencyValue(totalPending)} | Total Approved: ${formatCurrencyValue(totalApproved)}`;
-    
-    generatePDF(columns, data, { 
-      title: 'Farmer Payments Report',
-      fileName: 'farmer-payments',
-      subtitle,
-      footerText: 'Farm Fresh Dairy - Admin Payment Report',
-      orientation: 'landscape'
+
+    generatePDF(columns, data, {
+      title: "Farmer Payments Report",
+      fileName: "farmer-payments",
+      subtitle: `Total Pending: ${formatCurrencyValue(totalPending)} | Total Approved: ${formatCurrencyValue(totalApproved)}`,
+      footerText: "Farm Fresh Dairy - Admin Payment Report",
+      orientation: "landscape",
     });
   };
 
@@ -228,10 +189,10 @@ export const FarmerPaymentApproval = () => {
           <FileText className="h-5 w-5 mr-2 text-[#437358]" />
           Farmer Payment Approval
         </CardTitle>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1" 
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-1"
           onClick={handleExportPDF}
         >
           <Download className="h-4 w-4" />
@@ -267,17 +228,15 @@ export const FarmerPaymentApproval = () => {
                         <p className="font-medium">
                           {payment.farmer?.first_name || ""} {payment.farmer?.last_name || ""}
                         </p>
-                        <p className="text-sm text-muted-foreground">{payment.farmer?.email || ""}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {payment.farmer?.email || ""}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="font-medium">
-                        {formatCurrencyValue(payment.amount)}
-                      </span>
+                      <span className="font-medium">{formatCurrencyValue(payment.amount)}</span>
                     </TableCell>
-                    <TableCell>
-                      {format(new Date(payment.payment_date), "MMM dd, yyyy")}
-                    </TableCell>
+                    <TableCell>{format(new Date(payment.payment_date), "MMM dd, yyyy")}</TableCell>
                     <TableCell>
                       <span className="flex items-center gap-1 text-xs px-2 py-0.5 bg-gray-100 rounded-full">
                         {getStatusIcon(payment.status)}
@@ -286,27 +245,27 @@ export const FarmerPaymentApproval = () => {
                     </TableCell>
                     <TableCell>
                       <span className="text-xs text-muted-foreground">
-                        {payment.contributions?.length || 0} contributions
+                        {payment.contributions.length} contributions
                       </span>
                     </TableCell>
                     <TableCell>
                       {payment.status === "pending" && (
                         <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             className="border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700"
-                            disabled={isProcessing}
-                            onClick={() => updatePaymentStatus(payment.id, "approved")}
+                            disabled={processingId !== null}
+                            onClick={() => handleReview(payment.id, true)}
                           >
-                            Approve
+                            {processingId === payment.id ? "Processing…" : "Approve"}
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                            disabled={isProcessing}
-                            onClick={() => updatePaymentStatus(payment.id, "rejected")}
+                            disabled={processingId !== null}
+                            onClick={() => handleReview(payment.id, false)}
                           >
                             Reject
                           </Button>

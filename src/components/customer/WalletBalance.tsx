@@ -1,49 +1,25 @@
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { getWalletBalance, rechargeWallet } from "@/lib/rpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditCard, PlusCircle, Banknote } from "lucide-react";
 
-export const WalletBalance = ({ refreshTrigger = 0 }) => {
+const MAX_RECHARGE = 100000;
+
+export const WalletBalance = ({ refreshTrigger = 0 }: { refreshTrigger?: number }) => {
   const [balance, setBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [rechargeAmount, setRechargeAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchWalletBalance();
-  }, [refreshTrigger]); // Re-fetch when refreshTrigger changes
-
-  const fetchWalletBalance = async () => {
+  const fetchBalance = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      // Get all wallet transactions for the user
-      const { data, error } = await supabase
-        .from("wallet_transactions")
-        .select("amount, transaction_type, status")
-        .eq("user_id", session.user.id)
-        .eq("status", "completed");
-
-      if (error) throw error;
-
-      // Calculate balance from transactions
-      const calculatedBalance = data?.reduce((total, transaction) => {
-        if (transaction.transaction_type === "deposit") {
-          return total + transaction.amount;
-        } else if (transaction.transaction_type === "withdrawal") {
-          return total - transaction.amount;
-        }
-        return total;
-      }, 0) || 0;
-
-      setBalance(calculatedBalance);
+      const value = await getWalletBalance();
+      setBalance(value ?? 0);
     } catch (error) {
       console.error("Error fetching wallet balance:", error);
       toast({
@@ -54,52 +30,38 @@ export const WalletBalance = ({ refreshTrigger = 0 }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleRecharge = async (e) => {
+  useEffect(() => {
+    void fetchBalance();
+  }, [fetchBalance, refreshTrigger]);
+
+  const handleRecharge = async (e: React.FormEvent) => {
     e.preventDefault();
+    const amount = Number.parseFloat(rechargeAmount);
+
+    if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_RECHARGE) {
+      toast({
+        title: "Invalid amount",
+        description: `Enter an amount between ₹1 and ₹${MAX_RECHARGE.toLocaleString()}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
-    
     try {
-      const amount = parseFloat(rechargeAmount);
-      if (isNaN(amount) || amount <= 0) {
-        throw new Error("Please enter a valid amount");
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("You must be logged in to recharge your wallet");
-      }
-
-      // In a real app, you would integrate with a payment gateway here
-      // For demo purposes, we'll just add the amount directly
-      
-      const { error } = await supabase
-        .from("wallet_transactions")
-        .insert({
-          user_id: session.user.id,
-          amount: amount,
-          transaction_type: "deposit",
-          status: "completed" // In real app, would be pending until payment confirmed
-        });
-
-      if (error) throw error;
-
-      // Update local balance
-      setBalance(prevBalance => prevBalance + amount);
+      await rechargeWallet(amount);
+      await fetchBalance();
       setRechargeAmount("");
-      
       toast({
         title: "Wallet Recharged!",
         description: `Successfully added ₹${amount.toFixed(2)} to your wallet.`,
       });
     } catch (error) {
-      console.error("Error recharging wallet:", error);
-      toast({
-        title: "Recharge Failed",
-        description: error.message || "There was an error recharging your wallet. Please try again.",
-        variant: "destructive",
-      });
+      const message =
+        error instanceof Error ? error.message : "There was an error recharging your wallet.";
+      toast({ title: "Recharge Failed", description: message, variant: "destructive" });
     } finally {
       setIsProcessing(false);
     }
@@ -125,7 +87,7 @@ export const WalletBalance = ({ refreshTrigger = 0 }) => {
               </div>
               <Banknote className="h-8 w-8 text-[#437358] opacity-30" />
             </div>
-            
+
             <div className="mt-4">
               <form onSubmit={handleRecharge} className="space-y-3">
                 <div className="space-y-2">
@@ -136,13 +98,14 @@ export const WalletBalance = ({ refreshTrigger = 0 }) => {
                       type="number"
                       placeholder="Enter amount"
                       min="1"
+                      max={MAX_RECHARGE}
                       step="0.01"
                       value={rechargeAmount}
                       onChange={(e) => setRechargeAmount(e.target.value)}
                       className="flex-1"
                     />
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       className="bg-[#437358] hover:bg-[#345c46]"
                       disabled={isProcessing || !rechargeAmount}
                     >
@@ -152,7 +115,7 @@ export const WalletBalance = ({ refreshTrigger = 0 }) => {
                   </div>
                 </div>
               </form>
-              
+
               <p className="text-xs text-muted-foreground mt-3">
                 Use your wallet balance to quickly pay for orders and subscriptions.
               </p>

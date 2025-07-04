@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { setFarmerStatus, getTodayStockSummary, getLatestMilkStock } from "@/lib/rpc";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { useToast } from "@/components/ui/use-toast";
 import { Sidebar, SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -11,7 +12,7 @@ import { Navbar } from "@/components/layout/Navbar";
 interface FarmerProfile {
   id: string;
   email: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   created_at: string;
   farm_name?: string;
   farm_location?: string;
@@ -23,148 +24,50 @@ interface FarmerProfile {
   farmer_id?: string;
 }
 
-// Add a proper interface for the milk_stock table
-interface MilkStockRecord {
-  total_stock: number;
-  available_stock: number;
-  subscription_demand: number;
-  leftover_milk: number;
-  date: string;
-}
-
-interface MilkStock {
-  total_stock: number;
-  available_stock?: number;
-  sold_stock?: number;
-  subscription_demand?: number;
-}
-
-// Add new types to support the new inventory tables
-declare module '@supabase/supabase-js' {
-  interface SupabaseClient {
-    rpc<T = any>(
-      fn: string,
-      params?: object,
-      options?: { head?: boolean, count?: null | 'exact' | 'planned' | 'estimated' }
-    ): { data: T; error: Error | null };
-  }
-}
-
 const AdminDashboard = () => {
-  const navigate = useNavigate();
+  // Access control is handled by <ProtectedRoute role="admin"> in App.tsx.
+  const { profile: adminProfile } = useAuth();
   const { toast } = useToast();
   const [pendingFarmers, setPendingFarmers] = useState<FarmerProfile[]>([]);
   const [approvedFarmers, setApprovedFarmers] = useState<FarmerProfile[]>([]);
   const [activeSection, setActiveSection] = useState("dashboard");
-  const [totalMilkStock, setTotalMilkStock] = useState<number>(0);
-  const [availableStock, setAvailableStock] = useState<number>(0);
-  const [soldStock, setSoldStock] = useState<number>(0);
-  const [subscriptionDemand, setSubscriptionDemand] = useState<number>(0);
-  const [adminProfile, setAdminProfile] = useState<any>(null);
+  const [totalMilkStock, setTotalMilkStock] = useState(0);
+  const [availableStock, setAvailableStock] = useState(0);
+  const [soldStock, setSoldStock] = useState(0);
+  const [subscriptionDemand, setSubscriptionDemand] = useState(0);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth/admin");
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("user_type, first_name, last_name")
-        .eq("id", session.user.id)
-        .single();
-
-      if (profile?.user_type !== "admin") {
-        navigate("/");
-        return;
-      }
-
-      setAdminProfile(profile);
-    };
-
-    checkAuth();
-    loadFarmers();
-    loadMilkStock();
-  }, [navigate]);
-
-  const loadMilkStock = async () => {
+  const loadMilkStock = useCallback(async () => {
     try {
-      // Try to get today's stock summary first
-      const { data: summaryData, error: summaryError } = await supabase
-        .rpc('get_today_stock_summary');
-      
-      if (!summaryError && Array.isArray(summaryData) && summaryData.length > 0) {
-        const summary = summaryData[0];
-        setTotalMilkStock(summary.total_stock || 0);
-        setAvailableStock(summary.available_stock || 0);
-        setSoldStock(summary.sold_stock || 0);
-        setSubscriptionDemand(summary.subscription_demand || 0);
-        return;
-      }
-      
-      // Fallback to getting latest milk stock directly
-      const { data: latestStockData, error: latestStockError } = await supabase
-        .rpc('get_latest_milk_stock');
-        
-      if (!latestStockError && Array.isArray(latestStockData) && latestStockData.length > 0) {
-        const latestStock = latestStockData[0] as MilkStockRecord;
-        setTotalMilkStock(latestStock.total_stock || 0);
-        setAvailableStock(latestStock.available_stock || 0);
-        setSubscriptionDemand(latestStock.subscription_demand || 0);
-        return;
-      }
-      
-      // Final fallback to regular stock query if both functions fail
-      const { data, error } = await supabase
-        .from('milk_stock')
-        .select('*')
-        .order('date', { ascending: false })
-        .limit(1);
-
-      if (error) {
-        console.error("Error loading milk stock:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load milk stock",
-          variant: "destructive",
-        });
+      const summary = await getTodayStockSummary();
+      if (summary) {
+        setTotalMilkStock(summary.total_stock ?? 0);
+        setAvailableStock(summary.available_stock ?? 0);
+        setSoldStock(summary.sold_stock ?? 0);
+        setSubscriptionDemand(summary.subscription_demand ?? 0);
         return;
       }
 
-      if (data && data.length > 0) {
-        const stockRecord = data[0] as MilkStockRecord;
-        setTotalMilkStock(stockRecord.total_stock || 0);
-        setAvailableStock(stockRecord.available_stock || 0);
-        setSubscriptionDemand(stockRecord.subscription_demand || 0);
-      } else {
-        // Set default values when no data is found
-        setTotalMilkStock(0);
-        setAvailableStock(0);
-        setSoldStock(0);
-        setSubscriptionDemand(0);
+      const latest = await getLatestMilkStock();
+      if (latest) {
+        setTotalMilkStock(latest.total_stock ?? 0);
+        setAvailableStock(latest.available_stock ?? 0);
+        setSubscriptionDemand(latest.subscription_demand ?? 0);
       }
     } catch (error) {
-      console.error("Error in loadMilkStock:", error);
+      console.error("Error loading milk stock:", error);
       toast({
         title: "Error",
         description: "Failed to load milk stock data",
         variant: "destructive",
       });
-      // Set default values on error
-      setTotalMilkStock(0);
-      setAvailableStock(0);
-      setSoldStock(0);
-      setSubscriptionDemand(0);
     }
-  };
+  }, [toast]);
 
-  const loadFarmers = async () => {
-    console.log("Loading farmers...");
+  const loadFarmers = useCallback(async () => {
     const { data: farmersData, error } = await supabase
       .from("profiles")
-      .select(`
+      .select(
+        `
         id,
         email,
         status,
@@ -179,9 +82,10 @@ const AdminDashboard = () => {
           production_capacity,
           farmer_id
         )
-      `)
+      `
+      )
       .eq("user_type", "farmer")
-      .order('created_at', { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error loading farmers:", error);
@@ -193,48 +97,48 @@ const AdminDashboard = () => {
       return;
     }
 
-    if (farmersData) {
-      const transformedFarmers: FarmerProfile[] = farmersData.map(f => ({
+    const transformed: FarmerProfile[] = (farmersData ?? []).map((f) => {
+      const farmerRow = Array.isArray(f.farmers) ? f.farmers[0] : f.farmers;
+      return {
         id: f.id,
-        email: f.email || '',
-        status: f.status || 'pending',
+        email: f.email || "",
+        status: (f.status as FarmerProfile["status"]) || "pending",
         created_at: f.created_at,
-        first_name: f.first_name || '',
-        last_name: f.last_name || '',
-        phone: f.phone || '',
-        address: f.address || '',
-        farm_name: f.farmers?.[0]?.farm_name,
-        farm_location: f.farmers?.[0]?.farm_location,
-        production_capacity: f.farmers?.[0]?.production_capacity,
-        farmer_id: f.farmers?.[0]?.farmer_id?.toString()
-      }));
+        first_name: f.first_name || "",
+        last_name: f.last_name || "",
+        phone: f.phone || "",
+        address: f.address || "",
+        farm_name: farmerRow?.farm_name ?? undefined,
+        farm_location: farmerRow?.farm_location ?? undefined,
+        production_capacity: farmerRow?.production_capacity ?? undefined,
+        farmer_id: farmerRow?.farmer_id?.toString(),
+      };
+    });
 
-      setPendingFarmers(transformedFarmers.filter(f => f.status === 'pending'));
-      setApprovedFarmers(transformedFarmers.filter(f => f.status === 'approved'));
-    }
-  };
+    setPendingFarmers(transformed.filter((f) => f.status === "pending"));
+    setApprovedFarmers(transformed.filter((f) => f.status === "approved"));
+  }, [toast]);
 
-  const handleFarmerStatus = async (farmerId: string, status: 'approved' | 'rejected') => {
+  useEffect(() => {
+    void loadFarmers();
+    void loadMilkStock();
+  }, [loadFarmers, loadMilkStock]);
+
+  const handleFarmerStatus = async (farmerId: string, status: "approved" | "rejected") => {
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ status })
-        .eq("id", farmerId);
-
-      if (error) throw error;
+      // Admin-only server-side RPC; a compromised client can't approve itself.
+      await setFarmerStatus(farmerId, status);
 
       toast({
         title: "Success",
-        description: `Farmer ${status === 'approved' ? 'approved' : 'rejected'} successfully`,
+        description: `Farmer ${status === "approved" ? "approved" : "rejected"} successfully`,
       });
 
-      loadFarmers();
+      await loadFarmers();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update farmer status",
-        variant: "destructive",
-      });
+      const message =
+        error instanceof Error ? error.message : "Failed to update farmer status";
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
@@ -243,24 +147,24 @@ const AdminDashboard = () => {
       <div className="fixed top-0 left-0 right-0 z-50">
         <Navbar showAuthButtons={false} />
       </div>
-      
+
       <div className="pt-16 flex-1 flex">
         <SidebarProvider>
           <div className="flex-1 flex w-full">
             <Sidebar>
-              <DashboardSidebar 
-                userType="admin" 
-                activeSection={activeSection} 
-                onSectionChange={setActiveSection} 
+              <DashboardSidebar
+                userType="admin"
+                activeSection={activeSection}
+                onSectionChange={setActiveSection}
               />
             </Sidebar>
             <SidebarInset>
               <div className="min-h-screen p-4 md:p-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-3">
                   <h1 className="text-2xl md:text-3xl font-bold text-[#437358]">
-                    {adminProfile?.first_name 
-                      ? `Welcome, ${adminProfile.first_name}` 
-                      : 'Admin Dashboard'}
+                    {adminProfile?.first_name
+                      ? `Welcome, ${adminProfile.first_name}`
+                      : "Admin Dashboard"}
                   </h1>
                   <LogoutButton />
                 </div>
@@ -272,8 +176,8 @@ const AdminDashboard = () => {
                   availableStock={availableStock}
                   soldStock={soldStock}
                   subscriptionDemand={subscriptionDemand}
-                  onApprove={(id) => handleFarmerStatus(id, 'approved')}
-                  onReject={(id) => handleFarmerStatus(id, 'rejected')}
+                  onApprove={(id) => handleFarmerStatus(id, "approved")}
+                  onReject={(id) => handleFarmerStatus(id, "rejected")}
                 />
               </div>
             </SidebarInset>

@@ -1,7 +1,7 @@
-
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { submitMilkCollection } from "@/lib/rpc";
 import {
   Card,
   CardContent,
@@ -21,36 +21,50 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format } from "date-fns";
 
+interface FarmerOption {
+  farmer_id: number;
+  profile: {
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  } | null;
+}
+
+/**
+ * Delivery-staff milk collection. Uses the same atomic staff-only
+ * `submit_milk_collection` RPC as the admin form: quality gating,
+ * blacklisting and stock updates all happen server-side.
+ */
 export const DeliveryMilkCollectionForm = () => {
-  const [farmers, setFarmers] = useState([]);
-  const [milkTypes, setMilkTypes] = useState([]);
+  const [farmers, setFarmers] = useState<FarmerOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Form state
   const [selectedFarmer, setSelectedFarmer] = useState("");
   const [selectedMilkType, setSelectedMilkType] = useState("cow");
-  const [quantity, setQuantity] = useState(0);
-  const [qualityRating, setQualityRating] = useState(1);
+  const [quantity, setQuantity] = useState("");
+  const [qualityRating, setQualityRating] = useState("1");
 
-  useEffect(() => {
-    fetchFarmers();
-    fetchMilkTypes();
-  }, []);
-
-  const fetchFarmers = async () => {
+  const fetchFarmers = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, email")
-        .eq("user_type", "farmer")
-        .eq("status", "approved");
+        .from("farmers")
+        .select(
+          `
+          farmer_id,
+          profile:profiles!id (
+            first_name,
+            last_name,
+            email
+          )
+        `
+        )
+        .order("farmer_id");
 
       if (error) throw error;
-      setFarmers(data || []);
+      setFarmers((data ?? []) as unknown as FarmerOption[]);
     } catch (error) {
       console.error("Error fetching farmers:", error);
       toast({
@@ -61,24 +75,20 @@ export const DeliveryMilkCollectionForm = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const fetchMilkTypes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("milk_pricing")
-        .select("milk_type");
+  useEffect(() => {
+    void fetchFarmers();
+  }, [fetchFarmers]);
 
-      if (error) throw error;
-      setMilkTypes(data?.map((item) => item.milk_type) || ["cow"]);
-    } catch (error) {
-      console.error("Error fetching milk types:", error);
-    }
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFarmer || !selectedMilkType || quantity <= 0) {
+
+    const qty = Number.parseFloat(quantity);
+    const rating = Number.parseInt(qualityRating, 10);
+    const farmerCode = Number.parseInt(selectedFarmer, 10);
+
+    if (!Number.isFinite(farmerCode) || !Number.isFinite(qty) || qty <= 0 || qty > 10000) {
       toast({
         title: "Validation Error",
         description: "Please fill all required fields with valid values.",
@@ -87,75 +97,40 @@ export const DeliveryMilkCollectionForm = () => {
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
+      const result = await submitMilkCollection({
+        farmerCode,
+        quantity: qty,
+        qualityRating: rating,
+        milkType: selectedMilkType,
+      });
 
-      // 1. Get milk price for the selected milk type
-      const { data: priceData, error: priceError } = await supabase
-        .from("milk_pricing")
-        .select("price_per_liter")
-        .eq("milk_type", selectedMilkType)
-        .single();
-
-      if (priceError) throw priceError;
-      
-      const milkPrice = priceData.price_per_liter;
-      const totalAmount = quantity * milkPrice;
-      
-      // 2. Create payment entry in the farmer_payments table
-      const { data: paymentData, error: paymentError } = await supabase
-        .from("farmer_payments")
-        .insert({
-          farmer_id: selectedFarmer,
-          amount: totalAmount,
-          status: "pending",
-          notes: `Payment for ${quantity}L of ${selectedMilkType} milk collection on ${format(new Date(), "MMM dd, yyyy")}`
-        })
-        .select();
-      
-      if (paymentError) throw paymentError;
-
-      // 3. Insert the milk contribution with payment ID reference
-      const { data: contributionData, error: contributionError } = await supabase
-        .from("milk_contributions")
-        .insert({
-          farmer_id: selectedFarmer,
-          milk_type: selectedMilkType,
-          quantity: quantity,
-          quality_rating: qualityRating,
-          contribution_date: new Date().toISOString().split("T")[0],
-          payment_id: paymentData?.[0]?.id // Link to the payment
-        })
-        .select();
-
-      if (contributionError) throw contributionError;
-
-      // Update milk stock using explicit type conversion to number
-      const { error: stockError } = await supabase
-        .rpc("update_milk_stock_safe", { 
-          add_quantity: Number(quantity) 
+      if (result.outcome === "recorded") {
+        toast({
+          title: "Success",
+          description: `Collected ${qty}L of milk from ${result.farmer_name || "farmer"} successfully.`,
         });
-
-      if (stockError) {
-        console.error("Error updating milk stock:", stockError);
+      } else if (result.outcome === "substandard") {
+        toast({
+          title: "Substandard Milk",
+          description: `Offense ${result.offense_count} of 3 recorded. The milk was not added to inventory.`,
+        });
+      } else {
+        toast({
+          title: "Farmer Blacklisted",
+          description: `${result.farmer_name || "The farmer"} has been blacklisted after ${result.offense_count} consecutive substandard submissions.`,
+          variant: "destructive",
+        });
       }
 
-      toast({
-        title: "Success",
-        description: `Collected ${quantity}L of milk from farmer successfully.`,
-      });
-
-      // Reset form
       setSelectedFarmer("");
-      setQuantity(0);
-      setQualityRating(1);
+      setQuantity("");
+      setQualityRating("1");
     } catch (error) {
-      console.error("Error collecting milk:", error);
-      toast({
-        title: "Error",
-        description: "Failed to record milk collection",
-        variant: "destructive",
-      });
+      const message =
+        error instanceof Error ? error.message : "Failed to record milk collection";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -168,9 +143,7 @@ export const DeliveryMilkCollectionForm = () => {
           <Milk className="h-5 w-5 text-[#437358]" />
           Collect Milk
         </CardTitle>
-        <CardDescription>
-          Record milk collected from farmers
-        </CardDescription>
+        <CardDescription>Record milk collected from farmers</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
@@ -186,10 +159,10 @@ export const DeliveryMilkCollectionForm = () => {
               </SelectTrigger>
               <SelectContent>
                 {farmers.map((farmer) => (
-                  <SelectItem key={farmer.id} value={farmer.id}>
-                    {farmer.first_name && farmer.last_name
-                      ? `${farmer.first_name} ${farmer.last_name}`
-                      : farmer.email}
+                  <SelectItem key={farmer.farmer_id} value={String(farmer.farmer_id)}>
+                    {farmer.profile?.first_name && farmer.profile?.last_name
+                      ? `${farmer.profile.first_name} ${farmer.profile.last_name}`
+                      : farmer.profile?.email || `Farmer #${farmer.farmer_id}`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -203,11 +176,9 @@ export const DeliveryMilkCollectionForm = () => {
                 <SelectValue placeholder="Select milk type" />
               </SelectTrigger>
               <SelectContent>
-                {milkTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </SelectItem>
-                ))}
+                <SelectItem value="cow">Cow</SelectItem>
+                <SelectItem value="buffalo">Buffalo</SelectItem>
+                <SelectItem value="goat">Goat</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -217,19 +188,18 @@ export const DeliveryMilkCollectionForm = () => {
             <Input
               id="quantity"
               type="number"
-              min="0"
+              min="0.1"
+              max="10000"
               step="0.1"
               value={quantity}
-              onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setQuantity(e.target.value)}
+              required
             />
           </div>
 
           <div className="space-y-1">
             <Label htmlFor="quality">Quality Rating</Label>
-            <Select 
-              value={qualityRating.toString()} 
-              onValueChange={(value) => setQualityRating(parseInt(value))}
-            >
+            <Select value={qualityRating} onValueChange={setQualityRating}>
               <SelectTrigger id="quality" className="flex items-center">
                 <Beaker className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Select quality rating" />

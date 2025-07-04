@@ -1,7 +1,5 @@
-
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { QuickOrderForm } from "@/components/customer/QuickOrderForm";
 import { SubscriptionsList } from "@/components/customer/SubscriptionsList";
@@ -13,38 +11,10 @@ import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar"
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 
 const CustomerDashboard = () => {
-  const navigate = useNavigate();
-  const [customerProfile, setCustomerProfile] = useState<any>(null);
+  // Access control is handled by <ProtectedRoute role="customer"> in App.tsx.
+  const { profile: customerProfile } = useAuth();
   const [activeSection, setActiveSection] = useState("orders");
   const [refreshOrdersTrigger, setRefreshOrdersTrigger] = useState(0);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth/customer");
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("user_type, first_name, last_name")
-        .eq("id", session.user.id)
-        .single();
-
-      if (profile?.user_type !== "customer") {
-        navigate("/");
-        return;
-      }
-
-      setCustomerProfile({
-        ...profile,
-        id: session.user.id
-      });
-    };
-
-    checkAuth();
-  }, [navigate]);
 
   const handleOrderComplete = () => {
     // Trigger a refresh of the orders list

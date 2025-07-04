@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getTodayStockSummary,
+  getLatestMilkStock,
+  archiveAndResetDailyStock,
+  archiveMilkInventory,
+} from "@/lib/rpc";
 import { useToast } from "@/components/ui/use-toast";
 import { 
   Card, 
@@ -79,49 +85,26 @@ export const StockManagement = () => {
     try {
       setIsLoading(true);
       
-      const { data, error } = await supabase
-        .rpc('get_today_stock_summary');
-        
-      if (error) throw error;
-      
-      if (Array.isArray(data) && data.length > 0) {
+      const summary = await getTodayStockSummary();
+
+      if (summary) {
         setStockSummary({
-          total_stock: data[0].total_stock || 0,
-          available_stock: data[0].available_stock || 0,
-          subscription_demand: data[0].subscription_demand || 0,
-          leftover_from_yesterday: data[0].leftover_from_yesterday || 0,
-          sold_stock: data[0].sold_stock || 0
+          total_stock: summary.total_stock || 0,
+          available_stock: summary.available_stock || 0,
+          subscription_demand: summary.subscription_demand || 0,
+          leftover_from_yesterday: summary.leftover_from_yesterday || 0,
+          sold_stock: summary.sold_stock || 0
         });
       } else {
         // If no summary data, get the latest milk stock
-        const { data: latestStock, error: latestStockError } = await supabase
-          .from('milk_stock')
-          .select('*')
-          .order('date', { ascending: false })
-          .limit(1);
-          
-        if (latestStockError) throw latestStockError;
-        
-        if (latestStock && latestStock.length > 0) {
-          const stock = latestStock[0] as MilkStockRecord;
-          // Create a stock summary from the milk_stock record
-          setStockSummary({
-            total_stock: stock.total_stock || 0,
-            available_stock: stock.available_stock || 0,
-            subscription_demand: stock.subscription_demand || 0,
-            leftover_from_yesterday: stock.leftover_milk || 0,
-            sold_stock: 0 // No sold data available in this case
-          });
-        } else {
-          // If no data at all, keep zeros
-          setStockSummary({
-            total_stock: 0,
-            available_stock: 0,
-            subscription_demand: 0,
-            leftover_from_yesterday: 0,
-            sold_stock: 0
-          });
-        }
+        const latest = await getLatestMilkStock();
+        setStockSummary({
+          total_stock: latest?.total_stock || 0,
+          available_stock: latest?.available_stock || 0,
+          subscription_demand: latest?.subscription_demand || 0,
+          leftover_from_yesterday: 0,
+          sold_stock: 0
+        });
       }
     } catch (error) {
       console.error("Error fetching stock summary:", error);
@@ -145,11 +128,8 @@ export const StockManagement = () => {
 
   const handleDailyReset = async () => {
     try {
-      const { error } = await supabase
-        .rpc('archive_and_reset_daily_stock');
-        
-      if (error) throw error;
-      
+      await archiveAndResetDailyStock();
+
       toast({
         title: "Success",
         description: "Daily stock has been archived and reset",
@@ -172,14 +152,9 @@ export const StockManagement = () => {
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
       
-      const { data, error } = await supabase
-        .rpc('archive_milk_inventory', { 
-          archive_date: yesterdayStr 
-        });
-        
-      if (error) throw error;
-      
-      if (data) {
+      const archived = await archiveMilkInventory(yesterdayStr);
+
+      if (archived) {
         toast({
           title: "Success",
           description: "Inventory data has been archived successfully",

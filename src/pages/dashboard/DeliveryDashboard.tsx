@@ -1,9 +1,7 @@
-
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { LogoutButton } from "@/components/auth/LogoutButton";
-import { useToast } from "@/components/ui/use-toast";
 import { DeliverySummary } from "@/components/delivery/DeliverySummary";
 import { PendingDeliveries } from "@/components/delivery/PendingDeliveries";
 import { CompletedDeliveries } from "@/components/delivery/CompletedDeliveries";
@@ -14,59 +12,10 @@ import { Navbar } from "@/components/layout/Navbar";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 
 const DeliveryDashboard = () => {
-  const navigate = useNavigate();
+  // Access control is handled by <ProtectedRoute role="delivery"> in App.tsx.
+  const { profile: deliveryProfile } = useAuth();
   const location = useLocation();
-  const { toast } = useToast();
   const [refreshKey, setRefreshKey] = useState(0);
-  const [deliveryProfile, setDeliveryProfile] = useState<any>(null);
-
-  useEffect(() => {
-    checkUser();
-  }, [navigate]);
-
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      navigate('/auth/delivery');
-      return;
-    }
-
-    // Check if user is a delivery person
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('user_type, first_name, last_name')
-      .eq('id', session.user.id)
-      .single();
-
-    if (profile?.user_type !== 'delivery') {
-      await supabase.auth.signOut();
-      navigate('/auth/delivery');
-      return;
-    }
-
-    setDeliveryProfile(profile);
-  };
-
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      toast({
-        title: "Signed out successfully",
-        description: "You have been logged out of your account.",
-      });
-      
-      navigate('/auth/delivery');
-    } catch (error) {
-      toast({
-        title: "Error signing out",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleStatusChange = () => {
     setRefreshKey(prev => prev + 1);

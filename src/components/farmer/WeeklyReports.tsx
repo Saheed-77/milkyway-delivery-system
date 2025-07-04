@@ -55,13 +55,20 @@ export const WeeklyReports = ({ farmerId }: WeeklyReportsProps) => {
         const lastWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
         const lastWeekEnd = endOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
 
-        // Fetch current week contributions with price
+        // Latest pricing per milk type to compute earnings server-consistently
+        const { data: pricingData } = await supabase
+          .from("milk_pricing")
+          .select("milk_type, price_per_liter")
+          .order("effective_from", { ascending: false });
+        const priceOf = new Map<string, number>();
+        for (const row of pricingData ?? []) {
+          if (!priceOf.has(row.milk_type)) priceOf.set(row.milk_type, row.price_per_liter);
+        }
+
+        // Fetch current week contributions
         const { data: currentWeekContributions, error: currentWeekError } = await supabase
           .from("milk_contributions")
-          .select(`
-            *,
-            price
-          `)
+          .select("*")
           .eq("farmer_id", farmerId)
           .gte("contribution_date", currentWeekStart.toISOString())
           .lte("contribution_date", currentWeekEnd.toISOString())
@@ -69,13 +76,10 @@ export const WeeklyReports = ({ farmerId }: WeeklyReportsProps) => {
 
         if (currentWeekError) throw currentWeekError;
 
-        // Fetch last week contributions with price
+        // Fetch last week contributions
         const { data: lastWeekContributions, error: lastWeekError } = await supabase
           .from("milk_contributions")
-          .select(`
-            *,
-            price
-          `)
+          .select("*")
           .eq("farmer_id", farmerId)
           .gte("contribution_date", lastWeekStart.toISOString())
           .lte("contribution_date", lastWeekEnd.toISOString())
@@ -96,7 +100,7 @@ export const WeeklyReports = ({ farmerId }: WeeklyReportsProps) => {
           
           const totalQuantity = dayContributions.reduce((sum, contrib) => sum + contrib.quantity, 0);
           const totalEarnings = dayContributions.reduce(
-            (sum, contrib) => sum + (contrib.price || 0), 
+            (sum, contrib) => sum + contrib.quantity * (priceOf.get(contrib.milk_type) ?? 0),
             0
           );
           
@@ -120,7 +124,7 @@ export const WeeklyReports = ({ farmerId }: WeeklyReportsProps) => {
           
           const totalQuantity = dayContributions.reduce((sum, contrib) => sum + contrib.quantity, 0);
           const totalEarnings = dayContributions.reduce(
-            (sum, contrib) => sum + (contrib.price || 0), 
+            (sum, contrib) => sum + contrib.quantity * (priceOf.get(contrib.milk_type) ?? 0),
             0
           );
           
@@ -145,7 +149,7 @@ export const WeeklyReports = ({ farmerId }: WeeklyReportsProps) => {
           lastWeek: { quantity: lastWeekQuantity, earnings: lastWeekEarnings }
         });
 
-      } catch (error: any) {
+      } catch (error) {
         toast({
           title: "Error loading weekly reports",
           description: error.message || "Failed to load weekly report data.",

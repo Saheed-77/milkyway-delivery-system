@@ -1,7 +1,7 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PaymentOverview } from "@/components/farmer/PaymentOverview";
@@ -13,47 +13,30 @@ import { WeeklyReports } from "@/components/farmer/WeeklyReports";
 import { Navbar } from "@/components/layout/Navbar";
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 
+interface FarmerDetails {
+  farm_name?: string | null;
+  farm_location?: string | null;
+}
+
 const FarmerDashboard = () => {
+  // Access control is handled by <ProtectedRoute role="farmer"> in App.tsx.
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [farmerProfile, setFarmerProfile] = useState<any>(null);
+  const [farmerDetails, setFarmerDetails] = useState<FarmerDetails | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/auth/farmer");
-        return;
-      }
+    if (!profile) return;
+    supabase
+      .from("farmers")
+      .select("farm_name, farm_location")
+      .eq("id", profile.id)
+      .maybeSingle()
+      .then(({ data }) => setFarmerDetails(data ?? null));
+  }, [profile]);
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("user_type, first_name, last_name")
-        .eq("id", session.user.id)
-        .single();
-
-      if (profile?.user_type !== "farmer") {
-        navigate("/");
-        return;
-      }
-
-      // Get farmer details
-      const { data: farmerData } = await supabase
-        .from("farmers")
-        .select("*")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      setFarmerProfile({
-        ...profile,
-        ...farmerData,
-        id: session.user.id
-      });
-    };
-
-    checkAuth();
-  }, [navigate]);
+  const farmerProfile = profile ? { ...profile, ...farmerDetails } : null;
 
   // Get active tab from hash if present
   useEffect(() => {

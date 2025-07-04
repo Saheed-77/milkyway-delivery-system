@@ -5,25 +5,13 @@ import { format } from 'date-fns';
 
 // Ensure the plugin is properly integrated with jsPDF
 
-// Add type definition for jsPDF with autotable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    internal: jsPDF['internal'];
-  }
-}
-
-interface PubSub {
-  // Minimal PubSub interface - can be expanded if needed
-  subscribe: (event: string, callback: Function) => void;
-  publish: (event: string, data: any) => void;
-}
-
 interface Column {
   header: string;
   dataKey: string;
   styles?: object;
 }
+
+type RowData = Record<string, string | number | null | undefined>;
 
 interface PdfOptions {
   title: string;
@@ -34,8 +22,8 @@ interface PdfOptions {
 }
 
 export const generatePDF = (
-  columns: Column[], 
-  data: any[], 
+  columns: Column[],
+  data: RowData[],
   options: PdfOptions
 ) => {
   const { title, fileName, orientation = 'portrait', subtitle, footerText } = options;
@@ -66,7 +54,7 @@ export const generatePDF = (
   
   // Convert data for autoTable
   const tableData = data.map(item => {
-    const row: Record<string, any> = {};
+    const row: RowData = {};
     columns.forEach(col => {
       row[col.dataKey] = item[col.dataKey];
     });

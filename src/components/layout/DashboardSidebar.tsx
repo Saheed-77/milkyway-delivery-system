@@ -32,7 +32,7 @@ import {
 interface MenuItem {
   id: string;
   title: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<{ className?: string }>;
   url?: string;
 }
 

@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getTodayStockSummary,
+  getMilkInventoryArchive,
+  getInventorySummary,
+} from "@/lib/rpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import {
@@ -20,7 +25,7 @@ import { DateRange } from "react-day-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface StockArchive {
-  id: number;
+  id: string;
   date: string;
   total_stock: number;
   available_stock: number;
@@ -95,7 +100,7 @@ export const InventoryManagement = () => {
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
-        table: 'milk_inventory_archive' 
+        table: 'milk_stock_archive' 
       }, () => {
         console.log("Inventory archive changed, refreshing data...");
         fetchStockHistory();
@@ -111,17 +116,14 @@ export const InventoryManagement = () => {
 
   const fetchTodayStockSummary = async () => {
     try {
-      const { data, error } = await supabase
-        .rpc('get_today_stock_summary');
-
-      if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
+      const summary = await getTodayStockSummary();
+      if (summary) {
         setTodayStock({
-          total_stock: data[0].total_stock || 0,
-          available_stock: data[0].available_stock || 0,
-          subscription_demand: data[0].subscription_demand || 0,
-          leftover_from_yesterday: data[0].leftover_from_yesterday || 0,
-          sold_stock: data[0].sold_stock || 0
+          total_stock: summary.total_stock || 0,
+          available_stock: summary.available_stock || 0,
+          subscription_demand: summary.subscription_demand || 0,
+          leftover_from_yesterday: summary.leftover_from_yesterday || 0,
+          sold_stock: summary.sold_stock || 0
         });
       } else {
         // Set default values if no data
@@ -154,22 +156,15 @@ export const InventoryManagement = () => {
   const fetchStockHistory = async () => {
     try {
       setLoading(true);
-      
-      // Use the new RPC function instead of direct table access
-      let query = supabase.rpc('get_milk_inventory_archive');
 
-      // Add date range filter if dates are selected
-      if (dateRange && dateRange.from && dateRange.to) {
-        query = supabase.rpc('get_milk_inventory_archive', { 
-          start_date: dateRange.from.toISOString().split('T')[0],
-          end_date: dateRange.to.toISOString().split('T')[0]
-        });
-      }
+      const data =
+        dateRange && dateRange.from && dateRange.to
+          ? await getMilkInventoryArchive(
+              dateRange.from.toISOString().split('T')[0],
+              dateRange.to.toISOString().split('T')[0]
+            )
+          : await getMilkInventoryArchive();
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-      
       // Transform the data to match our expected StockArchive type
       const formattedData = (data || []).map(item => ({
         id: item.id,
@@ -197,45 +192,27 @@ export const InventoryManagement = () => {
   const fetchInventorySummary = async () => {
     try {
       const period = 30; // Default to 30 days
-      
-      // Use date range if provided
+      let days = period;
+
       if (dateRange && dateRange.from && dateRange.to) {
-        const days = Math.round((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
-        const { data, error } = await supabase.rpc('get_inventory_summary', { 
-          period_days: days > 0 ? days : period 
+        const rangeDays = Math.round(
+          (dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (rangeDays > 0) days = rangeDays;
+      }
+
+      const summary = await getInventorySummary(days);
+      if (summary) {
+        setInventorySummary({
+          start_date: summary.start_date || new Date().toISOString(),
+          end_date: summary.end_date || new Date().toISOString(),
+          avg_total_stock: summary.avg_total_stock || 0,
+          avg_subscription_demand: summary.avg_subscription_demand || 0,
+          avg_leftover_milk: summary.avg_leftover_milk || 0,
+          max_total_stock: summary.max_total_stock || 0,
+          min_total_stock: summary.min_total_stock || 0,
+          total_days: summary.total_days || 0
         });
-        
-        if (error) throw error;
-        if (data && data.length > 0 && data[0]) {
-          setInventorySummary({
-            start_date: data[0].start_date || new Date().toISOString(),
-            end_date: data[0].end_date || new Date().toISOString(),
-            avg_total_stock: data[0].avg_total_stock || 0,
-            avg_subscription_demand: data[0].avg_subscription_demand || 0,
-            avg_leftover_milk: data[0].avg_leftover_milk || 0,
-            max_total_stock: data[0].max_total_stock || 0,
-            min_total_stock: data[0].min_total_stock || 0,
-            total_days: data[0].total_days || 0
-          });
-        }
-      } else {
-        const { data, error } = await supabase.rpc('get_inventory_summary', { 
-          period_days: period 
-        });
-        
-        if (error) throw error;
-        if (data && data.length > 0 && data[0]) {
-          setInventorySummary({
-            start_date: data[0].start_date || new Date().toISOString(),
-            end_date: data[0].end_date || new Date().toISOString(),
-            avg_total_stock: data[0].avg_total_stock || 0,
-            avg_subscription_demand: data[0].avg_subscription_demand || 0,
-            avg_leftover_milk: data[0].avg_leftover_milk || 0,
-            max_total_stock: data[0].max_total_stock || 0,
-            min_total_stock: data[0].min_total_stock || 0,
-            total_days: data[0].total_days || 0
-          });
-        }
       }
     } catch (error) {
       console.error("Error fetching inventory summary:", error);

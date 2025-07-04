@@ -44,30 +44,42 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
       setIsLoading(true);
       try {
         // Get milk contributions with payment status
-        const { data, error } = await supabase
-          .from("milk_contributions")
-          .select(`
-            id,
-            quantity,
-            milk_type,
-            contribution_date,
-            quality_rating,
-            created_at,
-            price,
-            payment_id,
-            farmer_payments(status)
-          `)
-          .eq("farmer_id", farmerId)
-          .order("contribution_date", { ascending: false })
-          .limit(20);
+        const [{ data, error }, { data: pricingData }] = await Promise.all([
+          supabase
+            .from("milk_contributions")
+            .select(`
+              id,
+              quantity,
+              milk_type,
+              contribution_date,
+              quality_rating,
+              created_at,
+              payment_id,
+              farmer_payments(status)
+            `)
+            .eq("farmer_id", farmerId)
+            .order("contribution_date", { ascending: false })
+            .limit(20),
+          supabase
+            .from("milk_pricing")
+            .select("milk_type, price_per_liter")
+            .order("effective_from", { ascending: false }),
+        ]);
 
         if (error) throw error;
-        
-        // Transform data to include payment status
-        const transformedData = data?.map(contribution => ({
+
+        const priceOf = new Map<string, number>();
+        for (const row of pricingData ?? []) {
+          if (!priceOf.has(row.milk_type)) priceOf.set(row.milk_type, row.price_per_liter);
+        }
+
+        // Transform data to include payment status and derived price
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transformedData = ((data ?? []) as any[]).map(contribution => ({
           ...contribution,
+          price: contribution.quantity * (priceOf.get(contribution.milk_type) ?? 0),
           payment_status: contribution.farmer_payments?.status || 'pending'
-        })) || [];
+        }));
         
         setContributions(transformedData);
         setFilteredContributions(transformedData);
@@ -76,7 +88,7 @@ export const ContributionHistory = ({ farmerId }: ContributionHistoryProps) => {
         const pending = transformedData.filter(c => c.payment_status === 'pending');
         const pendingAmount = pending.reduce((sum, c) => sum + (c.price || 0), 0);
         setPendingPayments(pendingAmount);
-      } catch (error: any) {
+      } catch (error) {
         toast({
           title: "Error loading contributions",
           description: error.message || "Failed to load your contribution history.",

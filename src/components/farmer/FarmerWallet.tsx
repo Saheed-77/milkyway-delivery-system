@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getWalletBalance } from "@/lib/rpc";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { 
@@ -40,30 +41,22 @@ export const FarmerWallet = ({ farmerId }: FarmerWalletProps) => {
     const fetchWalletData = async () => {
       setIsLoading(true);
       try {
-        // Get wallet transactions
-        const { data, error } = await supabase
-          .from("wallet_transactions")
-          .select("*")
-          .eq("user_id", farmerId)
-          .order("created_at", { ascending: false })
-          .limit(10);
+        // Recent transactions for display only; the balance comes from the
+        // server so it reflects ALL transactions, not just the last 10.
+        const [{ data, error }, serverBalance] = await Promise.all([
+          supabase
+            .from("wallet_transactions")
+            .select("*")
+            .eq("user_id", farmerId)
+            .order("created_at", { ascending: false })
+            .limit(10),
+          getWalletBalance(),
+        ]);
 
         if (error) throw error;
         setTransactions(data || []);
-
-        // Calculate balance
-        const completedTransactions = data?.filter(t => t.status === "completed") || [];
-        const calculatedBalance = completedTransactions.reduce((total, transaction) => {
-          if (transaction.transaction_type === "deposit") {
-            return total + transaction.amount;
-          } else if (transaction.transaction_type === "withdrawal") {
-            return total - transaction.amount;
-          }
-          return total;
-        }, 0);
-
-        setBalance(calculatedBalance);
-      } catch (error: any) {
+        setBalance(serverBalance ?? 0);
+      } catch (error) {
         toast({
           title: "Error loading wallet",
           description: error.message || "Failed to load wallet information.",

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 // Make sure we properly type the props
 interface OrderActionsProps {
-  order: any;
+  order: { id: string; status: string };
   onStatusUpdate?: () => void;
 }
 
