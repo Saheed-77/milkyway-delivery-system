@@ -125,6 +125,9 @@ export const updateMilkStockSafe = (addQuantity: number) =>
 export const upsertMilkStock = (total: number) =>
   call<boolean>('upsert_milk_stock', { p_total: total });
 
+export const autoReserveSubscriptionStock = () =>
+  call<boolean>('auto_reserve_subscription_stock');
+
 export const archiveAndResetDailyStock = () =>
   call<boolean>('archive_and_reset_daily_stock');
 

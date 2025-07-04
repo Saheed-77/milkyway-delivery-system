@@ -18,6 +18,7 @@ import { StockManagement } from "./StockManagement";
 import { InventoryManagement } from "./InventoryManagement";
 import { Milk, ShoppingBag, UserCheck, UserPlus, BarChart3, CreditCard, List, PlusCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { autoReserveSubscriptionStock } from "@/lib/rpc";
 import { MilkStockManager } from "./MilkStockManager";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,53 +108,10 @@ export const DashboardContent = ({
       fetchWeeklyCollection();
       fetchWeeklyOrders();
       
-      // Call the auto-reserve function daily
+      // Reserve tomorrow's subscription demand (server computes the amount)
       const autoReserveStock = async () => {
         try {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          
-          const { data: subscriptionData } = await supabase
-            .from("subscriptions")
-            .select(`
-              quantity,
-              frequency
-            `)
-            .eq("status", "active");
-            
-          let dailyDemand = 0;
-          
-          subscriptionData?.forEach(subscription => {
-            const quantity = subscription.quantity || 0;
-            
-            switch(subscription.frequency) {
-              case 'daily':
-                dailyDemand += quantity;
-                break;
-              case 'weekly':
-                dailyDemand += quantity / 7;
-                break;
-              case 'monthly':
-                dailyDemand += quantity / 30;
-                break;
-            }
-          });
-          
-          dailyDemand = Math.ceil(dailyDemand);
-          
-          await fetch('https://upfvwlqxaaunzpgejhyo.supabase.co/rest/v1/rpc/create_stock_reservation', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwZnZ3bHF4YWF1bnpwZ2VqaHlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkzODEyOTQsImV4cCI6MjA1NDk1NzI5NH0.r0My6pZfp4vajWgXaCA5nAbtpJ671Vwwv5x38wtlNgw',
-              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwZnZ3bHF4YWF1bnpwZ2VqaHlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkzODEyOTQsImV4cCI6MjA1NDk1NzI5NH0.r0My6pZfp4vajWgXaCA5nAbtpJ671Vwwv5x38wtlNgw`
-            },
-            body: JSON.stringify({
-              res_date: tomorrow.toISOString().split('T')[0],
-              res_amount: dailyDemand,
-              res_type: 'subscription'
-            })
-          });
+          await autoReserveSubscriptionStock();
         } catch (error) {
           console.error("Error auto-reserving stock:", error);
         }
