@@ -1,69 +1,109 @@
-# Welcome to your Lovable project
+# MilkyWay Delivery System
 
-## Project info
+A milk supply-chain platform connecting farmers, customers, delivery staff and
+administrators. Built with React 18 + TypeScript + Vite, shadcn/ui, and Supabase
+(Postgres with Row Level Security).
 
-**URL**: https://lovable.dev/projects/aa8a09f8-ae61-4a57-ae98-972c734f237d
+> **July 2026 — security rebuild.** The original prototype was fully reworked:
+> hardcoded credentials removed, role-escalation and wallet-forgery paths closed,
+> all money/stock mutations moved into atomic server-side functions, and RLS
+> rewritten with least privilege. Details in [Security model](#security-model).
 
-## How can I edit this code?
+## Setup
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/aa8a09f8-ae61-4a57-ae98-972c734f237d) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### 1. Frontend
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
+cp .env.example .env   # then fill in your Supabase URL + anon key
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Environment variables (never commit `.env`):
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+| Variable                 | Where to find it                                  |
+| ------------------------ | ------------------------------------------------- |
+| `VITE_SUPABASE_URL`      | Supabase dashboard → Project Settings → API       |
+| `VITE_SUPABASE_ANON_KEY` | Supabase dashboard → Project Settings → API       |
 
-**Use GitHub Codespaces**
+### 2. Database
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Apply the single migration to a **fresh** Supabase project (SQL editor or
+`supabase db push`):
 
-## What technologies are used for this project?
+```
+supabase/migrations/20260711000001_secure_rebuild.sql
+```
 
-This project is built with .
+It creates the full schema, RLS policies, atomic RPC functions and seed
+products/pricing. Old SQL files were superseded and moved to `legacy_sql/`
+(do not apply them — they contain the vulnerabilities this rebuild fixes).
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### 3. First admin account
 
-## How can I deploy this project?
+Admin accounts cannot be self-registered. Either:
 
-Simply open [Lovable](https://lovable.dev/projects/aa8a09f8-ae61-4a57-ae98-972c734f237d) and click on Share -> Publish.
+```sql
+-- allow an email to sign up as admin through the app
+insert into public.admin_allowlist (email) values ('you@example.com');
+```
 
-## I want to use a custom domain - is that possible?
+or promote an existing user:
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+```sql
+update public.profiles set user_type = 'admin' where email = 'you@example.com';
+```
+
+### 4. Optional nightly jobs
+
+If your plan has `pg_cron`, uncomment section 11 of the migration to schedule
+the daily stock archive/reset and subscription reservations.
+
+## Scripts
+
+| Command             | Purpose                        |
+| ------------------- | ------------------------------ |
+| `npm run dev`       | Dev server on port 8080        |
+| `npm run build`     | Production build               |
+| `npm run typecheck` | TypeScript check               |
+| `npm run lint`      | ESLint                         |
+
+## Security model
+
+- **Roles** (`admin`, `farmer`, `customer`, `delivery`) live in
+  `profiles.user_type` and are never writable by clients. The signup trigger
+  validates the requested role, rejects non-allowlisted admin signups, and a
+  guard trigger blocks role/status changes by non-admins.
+- **Wallets** cannot be written by clients at all. Balances are computed
+  server-side (`get_wallet_balance`); deposits/withdrawals happen only inside
+  SECURITY DEFINER RPCs serialized per user with advisory locks.
+- **Orders** are created via `place_order`, which looks up the price, verifies
+  stock, debits the wallet and writes the order + items in one transaction.
+  Cancellation (`cancel_order`) refunds and restores stock atomically.
+- **Farmer payments**: farmers request payment (`request_farmer_payment`);
+  the amount is computed server-side from `milk_pricing`. Admin review
+  (`review_farmer_payment`) atomically approves + credits the farmer's wallet,
+  or rejects + releases the contributions.
+- **Milk collections** (`submit_milk_collection`, staff-only) enforce the
+  quality gate: substandard milk is logged but not stocked, and three
+  consecutive substandard submissions blacklist the farmer.
+- **RLS** is least-privilege per table; privileged mutations are revoked from
+  clients and exposed only through role-checked RPCs (`search_path` pinned).
+- **Routing**: every dashboard is wrapped in `ProtectedRoute`, which blocks
+  rendering (and data fetching) until the session and role are verified.
+
+> The wallet recharge flow is a demo. In production, credit wallets only from a
+> payment-gateway webhook using the service role — never from the client.
+
+## Project structure
+
+```
+src/
+  contexts/AuthContext.tsx        session + profile state (onAuthStateChange)
+  components/auth/ProtectedRoute  role-based route guard
+  lib/rpc.ts                      typed wrappers for all server RPCs
+  integrations/supabase/          env-based client + schema types
+  pages/dashboard/                one dashboard per role
+supabase/migrations/              the single authoritative migration
+legacy_sql/                       superseded SQL kept for reference only
+```
