@@ -1,1 +1,3 @@
-project_id = "upfvwlqxaaunzpgejhyo"
+# Set this to your own project ref (Project Settings -> General), or run
+# `supabase link --project-ref <ref>` which writes it for you.
+project_id = "milkyway-delivery-system"
