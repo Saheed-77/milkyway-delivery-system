@@ -1,20 +1,38 @@
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from './types';
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "./types";
+import { IS_DEMO, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/config/env";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+let client: SupabaseClient<Database> | null = null;
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error(
-    'Missing Supabase configuration. Copy .env.example to .env and set ' +
-      'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
-  );
+/**
+ * Lazily created Supabase client. In demo mode there is no backend, so
+ * touching the client is a programming error — the demo service layer must
+ * be used instead.
+ */
+export function getSupabase(): SupabaseClient<Database> {
+  if (IS_DEMO) {
+    throw new Error("Supabase is not configured (demo mode). Use the service layer.");
+  }
+  if (!client) {
+    client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
+  }
+  return client;
 }
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
+/**
+ * Backwards-compatible proxy so `supabase.from(...)` keeps working while the
+ * client is created on first use rather than at import time.
+ */
+export const supabase = new Proxy({} as SupabaseClient<Database>, {
+  get(_target, prop) {
+    const c = getSupabase();
+    const value = Reflect.get(c, prop, c);
+    return typeof value === "function" ? value.bind(c) : value;
   },
 });
