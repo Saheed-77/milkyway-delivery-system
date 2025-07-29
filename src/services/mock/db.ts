@@ -54,6 +54,7 @@ export interface DbOrder {
   delivered_at: string | null;
   created_at: string;
   source: "order" | "subscription";
+  subscription_id?: string | null;
 }
 
 export interface DbOrderItem {
@@ -163,6 +164,8 @@ export interface DemoDb {
   nextFarmerCode: number;
   /** Demo auto-dispatch: bot riders pick up and deliver orders by themselves. */
   autoDispatch: boolean;
+  /** Riders driven by a person in demo mode whose movement is simulated along the route. */
+  selfDrive?: Record<string, boolean>;
 }
 
 export const DB_VERSION = 3;
