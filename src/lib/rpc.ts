@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/integrations/supabase/client';
 
 /**
  * Typed wrappers around the SECURITY DEFINER RPCs added in the
@@ -11,7 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const rpc = supabase.rpc.bind(supabase) as (name: string, args?: Record<string, unknown>) => any;
+const rpc = (name: string, args?: Record<string, unknown>) =>
+  (getSupabase().rpc as unknown as (n: string, a?: Record<string, unknown>) => any)(name, args);
 
 async function call<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await rpc(name, args);
@@ -28,18 +29,70 @@ export const placeOrder = (params: {
   milkType: string;
   quantity: number;
   paymentMethod: 'wallet' | 'cash';
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  notes?: string | null;
 }) =>
   call<string>('place_order', {
     p_milk_type: params.milkType,
     p_quantity: params.quantity,
     p_payment_method: params.paymentMethod,
+    p_address: params.address ?? null,
+    p_lat: params.lat ?? null,
+    p_lng: params.lng ?? null,
+    p_notes: params.notes ?? null,
   });
 
 export const cancelOrder = (orderId: string) =>
   call<boolean>('cancel_order', { p_order_id: orderId });
 
-export const completeDelivery = (orderId: string) =>
-  call<boolean>('complete_delivery', { p_order_id: orderId });
+export const completeDelivery = (orderId: string, otp?: string) =>
+  call<boolean>('complete_delivery', { p_order_id: orderId, p_otp: otp ?? null });
+
+export const claimOrder = (orderId: string) => call<boolean>('claim_order', { p_order_id: orderId });
+
+export const assignOrder = (orderId: string, riderId: string | null) =>
+  call<boolean>('assign_order', { p_order_id: orderId, p_rider_id: riderId });
+
+export const autoAssignOrders = (maxPerRider = 6) =>
+  call<number>('auto_assign_orders', { p_max_per_rider: maxPerRider });
+
+export const startDelivery = (orderId: string) =>
+  call<boolean>('start_delivery', { p_order_id: orderId });
+
+export const updateRiderLocation = (loc: {
+  lat: number;
+  lng: number;
+  heading?: number | null;
+  speed?: number | null;
+}) =>
+  call<boolean>('update_rider_location', {
+    p_lat: loc.lat,
+    p_lng: loc.lng,
+    p_heading: loc.heading ?? null,
+    p_speed: loc.speed ?? null,
+  });
+
+export interface TrackingPayload {
+  otp: string | null;
+  rider: { id: string; name: string; phone: string | null } | null;
+  location: {
+    rider_id: string;
+    lat: number;
+    lng: number;
+    heading: number | null;
+    speed: number | null;
+    updated_at: string;
+  } | null;
+  depot: { id: string; name: string; address: string; lat: number; lng: number } | null;
+}
+
+export const getOrderTracking = (orderId: string) =>
+  call<TrackingPayload>('get_order_tracking', { p_order_id: orderId });
+
+export const generateSubscriptionOrders = (date?: string) =>
+  call<number>('generate_subscription_orders', date ? { p_date: date } : undefined);
 
 export const setFarmerStatus = (farmerId: string, status: 'approved' | 'rejected' | 'pending') =>
   call<boolean>('set_farmer_status', { p_farmer_id: farmerId, p_status: status });
