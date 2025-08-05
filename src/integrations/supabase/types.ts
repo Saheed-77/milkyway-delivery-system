@@ -1,7 +1,7 @@
 /**
  * Database types for the MilkyWay Delivery System.
  *
- * Hand-maintained to match supabase/migrations/20260711000001_secure_rebuild.sql.
+ * Hand-maintained to match supabase/migrations (secure_rebuild + delivery_maps).
  * Enum-backed columns are typed as string for compatibility with UI state;
  * the database enforces the real enum constraints.
  */
@@ -22,6 +22,8 @@ type ProfileRow = {
   last_name: string | null;
   phone: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -61,6 +63,14 @@ type OrderRow = {
   payment_method: string;
   delivery_person_id: string | null;
   delivered_at: string | null;
+  delivery_address: string | null;
+  delivery_lat: number | null;
+  delivery_lng: number | null;
+  delivery_notes: string | null;
+  assigned_at: string | null;
+  picked_up_at: string | null;
+  source: string;
+  subscription_id: string | null;
   created_at: string;
 }
 
@@ -161,6 +171,31 @@ type DeliverySlotRow = {
   created_at: string;
 }
 
+type OrderOtpRow = {
+  order_id: string;
+  otp: string;
+  created_at: string;
+}
+
+type DepotRow = {
+  id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+type RiderLocationRow = {
+  rider_id: string;
+  lat: number;
+  lng: number;
+  heading: number | null;
+  speed: number | null;
+  updated_at: string;
+}
+
 type Insertable<T> = {
   [K in keyof T]?: T[K];
 };
@@ -196,17 +231,38 @@ export type Database = {
       stock_reservations: TableDef<StockReservationRow>;
       subscriptions: TableDef<SubscriptionRow>;
       delivery_slots: TableDef<DeliverySlotRow>;
+      order_otps: TableDef<OrderOtpRow>;
+      depots: TableDef<DepotRow>;
+      rider_locations: TableDef<RiderLocationRow>;
     };
     Views: Record<string, never>;
     Functions: {
       get_wallet_balance: { Args: Record<string, never>; Returns: number };
       recharge_wallet: { Args: { p_amount: number }; Returns: string };
       place_order: {
-        Args: { p_milk_type: string; p_quantity: number; p_payment_method: string };
+        Args: {
+          p_milk_type: string;
+          p_quantity: number;
+          p_payment_method: string;
+          p_address?: string | null;
+          p_lat?: number | null;
+          p_lng?: number | null;
+          p_notes?: string | null;
+        };
         Returns: string;
       };
       cancel_order: { Args: { p_order_id: string }; Returns: boolean };
-      complete_delivery: { Args: { p_order_id: string }; Returns: boolean };
+      complete_delivery: { Args: { p_order_id: string; p_otp?: string | null }; Returns: boolean };
+      claim_order: { Args: { p_order_id: string }; Returns: boolean };
+      assign_order: { Args: { p_order_id: string; p_rider_id: string | null }; Returns: boolean };
+      auto_assign_orders: { Args: { p_max_per_rider?: number }; Returns: number };
+      start_delivery: { Args: { p_order_id: string }; Returns: boolean };
+      update_rider_location: {
+        Args: { p_lat: number; p_lng: number; p_heading?: number | null; p_speed?: number | null };
+        Returns: boolean;
+      };
+      get_order_tracking: { Args: { p_order_id: string }; Returns: Json };
+      generate_subscription_orders: { Args: { p_date?: string }; Returns: number };
       set_farmer_status: {
         Args: { p_farmer_id: string; p_status: string };
         Returns: boolean;
