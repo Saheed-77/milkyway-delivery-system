@@ -169,8 +169,10 @@ function tick() {
       continue;
     }
     if (leg === "loading") continue;
+    const current = leg;
 
-    const order = active.find((o) => o.id === leg!.orderId)!;
+    const order = active.find((o) => o.id === current.orderId);
+    if (!order) continue;
     const dest = { lat: order.delivery_lat!, lng: order.delivery_lng! };
     const arrived = haversine(riderPos(rider.id), dest) < ARRIVED_METERS;
 
@@ -190,8 +192,8 @@ function tick() {
       continue;
     }
 
-    leg.traveled += SPEED_MPS * (TICK_MS / 1000) * (0.85 + Math.random() * 0.3);
-    const { point, heading, done } = pointAlong(leg.path, leg.traveled);
+    current.traveled += SPEED_MPS * (TICK_MS / 1000) * (0.85 + Math.random() * 0.3);
+    const { point, heading, done } = pointAlong(current.path, current.traveled);
     setRiderPos(rider.id, done ? dest : point, Math.round(heading), round2(SPEED_MPS));
     moved = true;
   }

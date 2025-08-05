@@ -11,8 +11,10 @@ import { getSupabase } from '@/integrations/supabase/client';
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const rpc = (name: string, args?: Record<string, unknown>) =>
-  (getSupabase().rpc as unknown as (n: string, a?: Record<string, unknown>) => any)(name, args);
+const rpc = (name: string, args?: Record<string, unknown>) => {
+  const client = getSupabase();
+  return (client.rpc as unknown as (n: string, a?: Record<string, unknown>) => any).call(client, name, args);
+};
 
 async function call<T>(name: string, args?: Record<string, unknown>): Promise<T> {
   const { data, error } = await rpc(name, args);

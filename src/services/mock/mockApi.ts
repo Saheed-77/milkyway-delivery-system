@@ -27,8 +27,9 @@ import { MILK_TYPES } from "../types";
 import { DEMO_ACCOUNTS, uid, type DbNotification, type DbOrder, type DbProfile, type DemoDb } from "./db";
 import { getStore } from "./store";
 
-const store = getStore();
-const db = (): DemoDb => store.db;
+// Lazily created so live mode never touches demo storage.
+const st = () => getStore();
+const db = (): DemoDb => st().db;
 
 /* ---------------------------------------------------------------- utils */
 
@@ -46,7 +47,7 @@ const fail = (message: string): never => {
 };
 
 function me(): DbProfile {
-  const id = store.sessionUserId;
+  const id = st().sessionUserId;
   const profile = id ? db().profiles.find((p) => p.id === id) : undefined;
   if (!profile) fail("Not authenticated");
   return profile!;
@@ -235,13 +236,13 @@ export const mockApi: DataApi = {
 
   auth: {
     async getProfile() {
-      const id = store.sessionUserId;
+      const id = st().sessionUserId;
       const p = id ? profileById(id) : undefined;
       return p ? toProfile(p) : null;
     },
     onChange(cb) {
-      return store.onAuth(() => {
-        const p = profileById(store.sessionUserId);
+      return st().onAuth(() => {
+        const p = profileById(st().sessionUserId);
         cb(p ? toProfile(p) : null);
       });
     },
@@ -249,14 +250,14 @@ export const mockApi: DataApi = {
       await latency();
       const p = db().profiles.find((x) => x.email.toLowerCase() === email.trim().toLowerCase());
       if (!p || (p.password && p.password !== password)) fail("Invalid login credentials");
-      store.setSession(p!.id);
+      st().setSession(p!.id);
       return toProfile(p!);
     },
     async demoSignIn(role) {
       await latency();
       const p = db().profiles.find((x) => x.email === DEMO_ACCOUNTS[role]);
       if (!p) fail("Demo account missing — reset the demo data");
-      store.setSession(p!.id);
+      st().setSession(p!.id);
       return toProfile(p!);
     },
     async signUp(input) {
@@ -296,22 +297,22 @@ export const mockApi: DataApi = {
           kind: "system",
           link: "/dashboard/admin/farmers",
         });
-        store.commit("farmers");
+        st().commit("farmers");
         return { active: false, message: "Registration submitted. An admin will review it shortly." };
       }
-      store.commit("farmers");
-      store.setSession(id);
+      st().commit("farmers");
+      st().setSession(id);
       return { active: true, message: "Account created — you're signed in." };
     },
     async signOut() {
-      store.setSession(null);
+      st().setSession(null);
     },
     async updateProfile(patch) {
       await latency();
       const p = me();
       Object.assign(p, patch);
-      store.commit("orders");
-      store.setSession(p.id);
+      st().commit("orders");
+      st().setSession(p.id);
       return toProfile(p);
     },
   },
@@ -328,7 +329,7 @@ export const mockApi: DataApi = {
       if (!p) fail("Product not found");
       if (patch.price !== undefined && !(patch.price > 0)) fail("Price must be greater than zero");
       Object.assign(p!, patch);
-      store.commit("pricing");
+      st().commit("pricing");
     },
   },
 
@@ -356,7 +357,7 @@ export const mockApi: DataApi = {
         order_id: null,
         created_at: nowIso(),
       });
-      store.commit("wallet");
+      st().commit("wallet");
     },
   },
 
@@ -420,7 +421,7 @@ export const mockApi: DataApi = {
         kind: "order",
         link: "/dashboard/admin/live",
       });
-      store.commit("orders", "wallet", "stock");
+      st().commit("orders", "wallet", "stock");
       return order.id;
     },
 
@@ -453,7 +454,7 @@ export const mockApi: DataApi = {
       if (o.delivery_person_id) {
         notify({ audience: o.delivery_person_id, title: "Stop cancelled", body: `An order for ${o.delivery_address} was cancelled.`, kind: "delivery", link: "/dashboard/delivery" });
       }
-      store.commit("orders", "wallet", "stock");
+      st().commit("orders", "wallet", "stock");
     },
 
     async tracking(orderId) {
@@ -494,7 +495,7 @@ export const mockApi: DataApi = {
       o.status = "completed";
       o.delivered_at = nowIso();
       notify({ audience: o.customer_id, title: "Order delivered", body: "Your milk has been delivered. Enjoy!", kind: "delivery", link: "/dashboard/customer/orders" });
-      store.commit("orders");
+      st().commit("orders");
     },
   },
 
@@ -535,7 +536,7 @@ export const mockApi: DataApi = {
         next_delivery: addDays(new Date(), 1).toISOString(),
         created_at: nowIso(),
       });
-      store.commit("subscriptions", "stock");
+      st().commit("subscriptions", "stock");
     },
     async setStatus(id, status) {
       await latency();
@@ -544,7 +545,7 @@ export const mockApi: DataApi = {
       if (!s || (s.customer_id !== p.id && p.user_type !== "admin")) fail("Subscription not found");
       if (s!.status === "cancelled") fail("Cancelled subscriptions cannot be changed");
       s!.status = status;
-      store.commit("subscriptions", "stock");
+      st().commit("subscriptions", "stock");
     },
     async generateOrders(date = today()) {
       await latency();
@@ -595,7 +596,7 @@ export const mockApi: DataApi = {
         s.next_delivery = addDays(d, s.frequency === "daily" ? 1 : s.frequency === "weekly" ? 7 : 30).toISOString();
         created++;
       }
-      store.commit("orders", "wallet", "stock", "subscriptions");
+      st().commit("orders", "wallet", "stock", "subscriptions");
       return created;
     },
   },
@@ -623,7 +624,7 @@ export const mockApi: DataApi = {
         body: status === "approved" ? "You can now log in and record milk deliveries." : "Contact the MilkyWay team for details.",
         kind: "system",
       });
-      store.commit("farmers");
+      st().commit("farmers");
     },
     async create(input) {
       await latency();
@@ -653,7 +654,7 @@ export const mockApi: DataApi = {
         farm_location: input.farmLocation?.trim() || null,
         production_capacity: input.productionCapacity ?? null,
       });
-      store.commit("farmers");
+      st().commit("farmers");
       return toFarmer(profile);
     },
   },
@@ -710,11 +711,11 @@ export const mockApi: DataApi = {
           profile.status = "rejected";
           notify({ audience: "admin", title: "Farmer blacklisted", body: `${name} was blacklisted after ${offenses} substandard submissions.`, kind: "system", link: "/dashboard/admin/farmers" });
           notify({ audience: profile.id, title: "Account suspended", body: "Three consecutive substandard submissions. Contact the MilkyWay team.", kind: "system" });
-          store.commit("contributions", "farmers");
+          st().commit("contributions", "farmers");
           return { outcome: "blacklisted", offense_count: offenses, farmer_name: name, farmer_email: profile.email };
         }
         notify({ audience: profile.id, title: "Milk rejected", body: `Today's milk failed the quality check (strike ${offenses} of 3).`, kind: "system" });
-        store.commit("contributions");
+        st().commit("contributions");
         return { outcome: "substandard", offense_count: offenses, farmer_name: name, farmer_email: profile.email };
       }
       db().contributions.push({
@@ -729,7 +730,7 @@ export const mockApi: DataApi = {
         created_at: nowIso(),
       });
       stockRow().total_stock = round2(stockRow().total_stock + input.quantity);
-      store.commit("contributions", "stock");
+      st().commit("contributions", "stock");
       return { outcome: "recorded", offense_count: 0, farmer_name: name, farmer_email: profile.email };
     },
   },
@@ -773,7 +774,7 @@ export const mockApi: DataApi = {
       db().payments.push(payment);
       rows.forEach((c) => (c.payment_id = payment.id));
       notify({ audience: "admin", title: "Payment requested", body: `${fullName(p)} requested ₹${amount.toFixed(2)}.`, kind: "payment", link: "/dashboard/admin/payments" });
-      store.commit("payments", "contributions");
+      st().commit("payments", "contributions");
       return payment.id;
     },
     async review(paymentId, approve) {
@@ -808,7 +809,7 @@ export const mockApi: DataApi = {
         kind: "payment",
         link: "/dashboard/farmer/payments",
       });
-      store.commit("payments", "contributions", "wallet");
+      st().commit("payments", "contributions", "wallet");
     },
   },
 
@@ -842,7 +843,7 @@ export const mockApi: DataApi = {
         db().pricing = db().pricing.filter((p) => !(p.milk_type === milk && p.effective_from === d));
         db().pricing.push({ id: uid("mp"), milk_type: milk, price_per_liter: round2(price), effective_from: d });
       }
-      store.commit("pricing");
+      st().commit("pricing");
     },
   },
 
@@ -874,7 +875,7 @@ export const mockApi: DataApi = {
       if (!Number.isFinite(delta) || Math.abs(delta) > 100000) fail("Invalid quantity");
       const row = stockRow();
       row.total_stock = round2(Math.max(0, row.total_stock + delta));
-      store.commit("stock");
+      st().commit("stock");
     },
     async reserveTomorrow() {
       await latency();
@@ -884,7 +885,7 @@ export const mockApi: DataApi = {
       const existing = db().reservations.find((r) => r.reservation_date === tomorrow && r.reservation_type === "subscription");
       if (existing) existing.reserved_amount = amount;
       else db().reservations.push({ id: uid("sr"), reservation_date: tomorrow, reserved_amount: amount, reservation_type: "subscription" });
-      store.commit("stock");
+      st().commit("stock");
       return amount;
     },
     async archiveAndReset() {
@@ -898,7 +899,7 @@ export const mockApi: DataApi = {
       const leftover = Math.max(0, row.total_stock - demand);
       db().archive.push({ id: uid("ar"), date: yesterday, total_stock: row.total_stock, subscription_demand: round2(demand), leftover_stock: round2(leftover) });
       stockRow().total_stock = round2(stockRow().total_stock + leftover);
-      store.commit("stock");
+      st().commit("stock");
       return true;
     },
     async archive(range) {
@@ -965,7 +966,7 @@ export const mockApi: DataApi = {
       o.delivery_person_id = p.id;
       o.assigned_at = nowIso();
       notify({ audience: o.customer_id, title: "Rider assigned", body: `${fullName(p)} will deliver your order.`, kind: "delivery", link: `/dashboard/customer/track/${o.id}` });
-      store.commit("orders");
+      st().commit("orders");
     },
     async start(orderId) {
       await latency();
@@ -976,7 +977,7 @@ export const mockApi: DataApi = {
       o.status = "out_for_delivery";
       o.picked_up_at = nowIso();
       notify({ audience: o.customer_id, title: "Your milk is on the way", body: `${fullName(p)} picked up your order. Track it live.`, kind: "delivery", link: `/dashboard/customer/track/${o.id}` });
-      store.commit("orders");
+      st().commit("orders");
     },
     async complete(orderId, otpCode) {
       await latency();
@@ -989,7 +990,7 @@ export const mockApi: DataApi = {
       o.delivered_at = nowIso();
       o.delivery_person_id = o.delivery_person_id ?? p.id;
       notify({ audience: o.customer_id, title: "Order delivered", body: "Your milk has been delivered. Enjoy!", kind: "delivery", link: "/dashboard/customer/orders" });
-      store.commit("orders");
+      st().commit("orders");
     },
     async updateLocation(loc) {
       const p = requireRole("delivery");
@@ -997,7 +998,7 @@ export const mockApi: DataApi = {
       const next = { rider_id: p.id, lat: loc.lat, lng: loc.lng, heading: loc.heading ?? null, speed: loc.speed ?? null, updated_at: nowIso() };
       if (existing) Object.assign(existing, next);
       else db().riderLocations.push(next);
-      store.commit("rider_locations");
+      st().commit("rider_locations");
     },
     async riders() {
       await latency();
@@ -1030,7 +1031,7 @@ export const mockApi: DataApi = {
       if (previous && previous !== riderId) {
         notify({ audience: previous, title: "Stop reassigned", body: `${o.delivery_address ?? "A stop"} was moved to another rider.`, kind: "delivery" });
       }
-      store.commit("orders");
+      st().commit("orders");
     },
     async autoAssign() {
       await latency();
@@ -1060,7 +1061,7 @@ export const mockApi: DataApi = {
 
   notifications: {
     async recent() {
-      const id = store.sessionUserId;
+      const id = st().sessionUserId;
       const p = profileById(id);
       if (!p) return [];
       return clone(
@@ -1073,7 +1074,7 @@ export const mockApi: DataApi = {
   },
 
   subscribe(topics, cb) {
-    return store.subscribe(topics, cb);
+    return st().subscribe(topics, cb);
   },
 };
 
@@ -1104,7 +1105,7 @@ export function autoAssignOrders(maxPerRider = 6, excludeRiderIds: string[] = []
     notify({ audience: o.customer_id, title: "Rider assigned", body: `${fullName(best.r)} will deliver your order.`, kind: "delivery", link: `/dashboard/customer/track/${o.id}` });
     count++;
   }
-  if (count) store.commit("orders");
+  if (count) st().commit("orders");
   return count;
 }
 
