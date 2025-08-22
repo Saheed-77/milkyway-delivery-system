@@ -154,7 +154,8 @@ function tick() {
     }
 
     let leg = legs.get(rider.id);
-    if (leg && leg !== "loading" && !active.some((o) => o.id === leg!.orderId)) {
+    const legOrderId = leg && leg !== "loading" ? leg.orderId : null;
+    if (legOrderId && !active.some((o) => o.id === legOrderId)) {
       legs.delete(rider.id);
       leg = undefined;
     }
