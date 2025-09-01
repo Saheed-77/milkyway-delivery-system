@@ -2,91 +2,128 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * MilkyWay design tokens — "fresh dairy modern".
+ * Cream base, deep sage primary, soft sky accent. All colours are HSL
+ * channels consumed by tailwind.config.ts; never hardcode hex in components.
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 48 23% 96%;
+    --foreground: 150 22% 13%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 150 22% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 150 22% 13%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 146 26% 36%;
+    --primary-foreground: 48 40% 98%;
+    --primary-soft: 140 24% 92%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 138 16% 93%;
+    --secondary-foreground: 146 30% 22%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 45 18% 92%;
+    --muted-foreground: 150 8% 40%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 208 72% 94%;
+    --accent-foreground: 208 60% 28%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --success: 146 50% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 140 45% 92%;
+    --warning: 36 92% 48%;
+    --warning-foreground: 30 60% 12%;
+    --warning-soft: 42 90% 92%;
+    --info: 208 70% 48%;
+    --info-foreground: 0 0% 100%;
+    --info-soft: 208 80% 94%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 80% 95%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 45 15% 86%;
+    --input: 45 15% 84%;
+    --ring: 146 26% 36%;
 
-    --radius: 0.5rem;
+    --radius: 0.85rem;
 
-    --sidebar-background: 0 0% 98%;
+    --chart-1: 146 35% 40%;
+    --chart-2: 205 70% 52%;
+    --chart-3: 36 85% 52%;
+    --chart-4: 14 70% 56%;
+    --chart-5: 262 45% 60%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 150 15% 25%;
+    --sidebar-primary: 146 26% 36%;
+    --sidebar-primary-foreground: 48 40% 98%;
+    --sidebar-accent: 138 18% 93%;
+    --sidebar-accent-foreground: 146 30% 20%;
+    --sidebar-border: 45 15% 88%;
+    --sidebar-ring: 146 26% 36%;
 
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --shadow-color: 150 30% 15%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 150 18% 7%;
+    --foreground: 48 25% 94%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 150 15% 10%;
+    --card-foreground: 48 25% 94%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 150 15% 10%;
+    --popover-foreground: 48 25% 94%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 146 40% 52%;
+    --primary-foreground: 150 30% 8%;
+    --primary-soft: 146 25% 16%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 150 12% 15%;
+    --secondary-foreground: 140 25% 85%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 150 10% 14%;
+    --muted-foreground: 140 8% 62%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 208 35% 18%;
+    --accent-foreground: 208 80% 82%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --success: 146 45% 48%;
+    --success-foreground: 150 30% 8%;
+    --success-soft: 146 30% 15%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 30 60% 10%;
+    --warning-soft: 38 50% 15%;
+    --info: 208 80% 62%;
+    --info-foreground: 210 50% 10%;
+    --info-soft: 208 40% 16%;
+    --destructive: 0 70% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 40% 16%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 150 10% 18%;
+    --input: 150 10% 20%;
+    --ring: 146 40% 52%;
+
+    --chart-1: 146 45% 50%;
+    --chart-2: 205 75% 60%;
+    --chart-3: 38 90% 58%;
+    --chart-4: 14 75% 62%;
+    --chart-5: 262 55% 70%;
+
+    --sidebar-background: 150 16% 9%;
+    --sidebar-foreground: 140 10% 80%;
+    --sidebar-primary: 146 40% 52%;
+    --sidebar-primary-foreground: 150 30% 8%;
+    --sidebar-accent: 150 12% 15%;
+    --sidebar-accent-foreground: 48 25% 94%;
+    --sidebar-border: 150 10% 16%;
+    --sidebar-ring: 146 40% 52%;
+
+    --shadow-color: 0 0% 0%;
   }
 }
 
@@ -95,7 +132,121 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply tracking-tight;
+  }
+
+  ::selection {
+    @apply bg-primary/20;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .card-elevated {
+    @apply rounded-2xl border bg-card text-card-foreground shadow-soft;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary via-[hsl(170_40%_40%)] to-info bg-clip-text text-transparent;
+  }
+
+  .bg-dots {
+    background-image: radial-gradient(hsl(var(--foreground) / 0.07) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .pb-safe {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* ---- Leaflet ---------------------------------------------------------- */
+.leaflet-container {
+  @apply font-sans;
+  background: hsl(var(--muted));
+}
+
+.leaflet-control-attribution {
+  @apply text-[10px];
+  background: hsl(var(--card) / 0.8) !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.leaflet-control-attribution a {
+  color: hsl(var(--primary)) !important;
+}
+
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  @apply shadow-lg;
+}
+
+.leaflet-popup-content-wrapper {
+  @apply rounded-xl;
+}
+
+.leaflet-popup-content {
+  @apply my-3 mx-4 text-sm;
+}
+
+.mw-marker {
+  background: transparent;
+  border: none;
+}
+
+.mw-rider-pulse {
+  animation: mw-pulse 2s ease-out infinite;
+}
+
+@keyframes mw-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
   }
 }
