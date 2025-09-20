@@ -1,100 +1,115 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { api, type Profile, type ProfileUpdate, type SignUpInput, type SignUpResult, type UserRole } from "@/services";
 
-export type UserRole = "admin" | "farmer" | "customer" | "delivery";
-export type AccountStatus = "pending" | "approved" | "rejected";
-
-export interface Profile {
-  id: string;
-  email: string;
-  user_type: UserRole;
-  status: AccountStatus;
-  first_name: string | null;
-  last_name: string | null;
-  phone: string | null;
-  address: string | null;
-}
+export type { UserRole, Profile };
+export type AccountStatus = Profile["status"];
 
 interface AuthContextValue {
-  session: Session | null;
   profile: Profile | null;
   isLoading: boolean;
+  isDemo: boolean;
+  /** Signs in and verifies the account belongs to `role`. */
+  signIn: (email: string, password: string, role: UserRole) => Promise<Profile>;
+  signUp: (input: SignUpInput) => Promise<SignUpResult>;
+  demoSignIn: (role: UserRole) => Promise<Profile>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateProfile: (patch: ProfileUpdate) => Promise<Profile>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, email, user_type, status, first_name, last_name, phone, address")
-    .eq("id", userId)
-    .single();
-  if (error) return null;
-  return data as unknown as Profile;
-}
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let cancelled = false;
+    api.auth
+      .getProfile()
+      .then((p) => !cancelled && setProfile(p))
+      .catch(() => !cancelled && setProfile(null))
+      .finally(() => !cancelled && setIsLoading(false));
 
-    const applySession = async (next: Session | null) => {
+    const unsubscribe = api.auth.onChange((p) => {
       if (cancelled) return;
-      setSession(next);
-      if (next?.user) {
-        const p = await fetchProfile(next.user.id);
-        if (!cancelled) setProfile(p);
-      } else {
-        setProfile(null);
-      }
-      if (!cancelled) setIsLoading(false);
-    };
-
-    supabase.auth.getSession().then(({ data: { session: current } }) => {
-      void applySession(current);
+      setProfile((prev) => {
+        // a different user (or sign-out): drop everything cached for the previous one
+        if (prev?.id !== p?.id) queryClient.clear();
+        return p;
+      });
+      setIsLoading(false);
     });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, next) => {
-      void applySession(next);
-    });
-
     return () => {
       cancelled = true;
-      subscription.unsubscribe();
+      unsubscribe();
     };
+  }, [queryClient]);
+
+  const signIn = useCallback(async (email: string, password: string, role: UserRole) => {
+    const p = await api.auth.signIn(email, password);
+    if (p.user_type !== role) {
+      await api.auth.signOut();
+      throw new Error(`This account is registered as ${p.user_type === "admin" ? "an admin" : `a ${p.user_type}`}. Use that login page instead.`);
+    }
+    if (p.user_type === "farmer" && p.status !== "approved") {
+      await api.auth.signOut();
+      throw new Error(
+        p.status === "pending"
+          ? "Your registration is still awaiting admin approval."
+          : "Your account has been suspended. Please contact the MilkyWay team."
+      );
+    }
+    // Set before resolving so navigation after `await signIn()` sees the profile
+    // (previously the guard could run first and bounce the user to "/").
+    setProfile(p);
+    return p;
+  }, []);
+
+  const demoSignIn = useCallback(async (role: UserRole) => {
+    if (!api.auth.demoSignIn) throw new Error("Demo sign-in is only available in demo mode");
+    const p = await api.auth.demoSignIn(role);
+    setProfile(p);
+    return p;
+  }, []);
+
+  const signUp = useCallback(async (input: SignUpInput) => {
+    const result = await api.auth.signUp(input);
+    if (result.active) setProfile(await api.auth.getProfile());
+    return result;
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await api.auth.signOut();
+    setProfile(null);
+    queryClient.clear();
+  }, [queryClient]);
+
+  const refreshProfile = useCallback(async () => {
+    setProfile(await api.auth.getProfile());
+  }, []);
+
+  const updateProfile = useCallback(async (patch: ProfileUpdate) => {
+    const p = await api.auth.updateProfile(patch);
+    setProfile(p);
+    return p;
   }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      session,
       profile,
       isLoading,
-      signOut: async () => {
-        await supabase.auth.signOut();
-        setProfile(null);
-      },
-      refreshProfile: async () => {
-        if (session?.user) {
-          setProfile(await fetchProfile(session.user.id));
-        }
-      },
+      isDemo: api.mode === "demo",
+      signIn,
+      signUp,
+      demoSignIn,
+      signOut,
+      refreshProfile,
+      updateProfile,
     }),
-    [session, profile, isLoading]
+    [profile, isLoading, signIn, signUp, demoSignIn, signOut, refreshProfile, updateProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
