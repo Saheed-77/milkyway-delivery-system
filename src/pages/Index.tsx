@@ -1,20 +1,19 @@
+import { Hero } from "@/components/landing/Hero";
+import { LandingNav } from "@/components/landing/LandingNav";
+import { CallToAction, Features, Footer, HowItWorks, Portals } from "@/components/landing/Sections";
 
-import { motion, useAnimation } from "framer-motion";
-import { Hero } from "@/components/Hero";
-
-const Index = () => {
-  const controls = useAnimation();
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="min-h-screen bg-cream-50"
-    >
+const Index = () => (
+  <div className="min-h-svh bg-background">
+    <LandingNav />
+    <main>
       <Hero />
-    </motion.div>
-  );
-};
+      <Features />
+      <HowItWorks />
+      <Portals />
+      <CallToAction />
+    </main>
+    <Footer />
+  </div>
+);
 
 export default Index;
