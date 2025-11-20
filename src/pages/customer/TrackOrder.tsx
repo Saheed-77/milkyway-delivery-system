@@ -39,7 +39,8 @@ export default function TrackOrder() {
 
   const order = data?.order;
   const home = order?.delivery_lat != null && order.delivery_lng != null ? { lat: order.delivery_lat, lng: order.delivery_lng } : null;
-  const rider = data?.location ? { lat: data.location.lat, lng: data.location.lng } : null;
+  const loc = data?.location;
+  const rider = useMemo(() => (loc ? { lat: loc.lat, lng: loc.lng } : null), [loc]);
   const onTheWay = order?.status === "out_for_delivery";
 
   // Route from where the rider was when we started following them; re-anchor

@@ -10,10 +10,11 @@ import { getSupabase } from '@/integrations/supabase/client';
  * funneled through this single module with a narrow escape hatch.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const rpc = (name: string, args?: Record<string, unknown>) => {
+type RpcResult = PromiseLike<{ data: unknown; error: { message?: string } | null }>;
+
+const rpc = (name: string, args?: Record<string, unknown>): RpcResult => {
   const client = getSupabase();
-  return (client.rpc as unknown as (n: string, a?: Record<string, unknown>) => any).call(client, name, args);
+  return (client.rpc as unknown as (n: string, a?: Record<string, unknown>) => RpcResult).call(client, name, args);
 };
 
 async function call<T>(name: string, args?: Record<string, unknown>): Promise<T> {
