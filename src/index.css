@@ -199,6 +199,15 @@
   background: hsl(var(--muted));
 }
 
+/* Soft, on-brand basemap; inverted for dark mode */
+.leaflet-tile-pane {
+  filter: saturate(0.75) brightness(1.02);
+}
+
+.dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.55);
+}
+
 .leaflet-control-attribution {
   @apply text-[10px];
   background: hsl(var(--card) / 0.8) !important;
@@ -238,6 +247,22 @@
 
 .mw-rider-pulse {
   animation: mw-pulse 2s ease-out infinite;
+}
+
+/* rider moving along the hero route (CSS motion path) */
+.mw-ride {
+  animation: mw-ride 8s ease-in-out infinite;
+}
+
+@keyframes mw-ride {
+  0%,
+  8% {
+    offset-distance: 0%;
+  }
+  92%,
+  100% {
+    offset-distance: 100%;
+  }
 }
 
 @keyframes mw-pulse {

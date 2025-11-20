@@ -42,15 +42,10 @@ export function RouteIllustration() {
           <path d="M-9 2 L0 -8 L9 2 V9 H-9 Z" fill="white" />
         </g>
         {/* rider */}
-        <motion.g
-          initial={{ offsetDistance: "0%" }}
-          animate={{ offsetDistance: "100%" }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
-          style={{ offsetPath: `path("${route}")`, offsetRotate: "0deg" }}
-        >
+        <g className="mw-ride" style={{ offsetPath: `path("${route}")`, offsetRotate: "0deg" }}>
           <circle r="20" fill="hsl(var(--primary))" opacity="0.2" />
           <circle r="13" fill="hsl(var(--primary))" stroke="hsl(var(--card))" strokeWidth="4" />
-        </motion.g>
+        </g>
       </svg>
 
       <motion.div
