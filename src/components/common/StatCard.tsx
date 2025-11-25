@@ -67,7 +67,7 @@ export function StatCard({
           {loading ? (
             <Skeleton className="h-8 w-24" />
           ) : (
-            <p className="truncate text-2xl font-bold tabular-nums sm:text-[28px]">{value}</p>
+            <p className="break-words text-xl font-bold leading-tight tabular-nums sm:text-2xl xl:text-[26px]">{value}</p>
           )}
           {(hint || trend !== undefined) && !loading && (
             <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
