@@ -34,3 +34,14 @@ export const OSRM_URL =
 export const NOMINATIM_URL =
   (env.VITE_NOMINATIM_URL as string | undefined)?.replace(/\/$/, "") ||
   "https://nominatim.openstreetmap.org";
+
+/**
+ * Raster tile URL template. Defaults to the public OpenStreetMap tiles (fine
+ * for demos; use a commercial/self-hosted provider for production traffic).
+ */
+export const TILE_URL =
+  (env.VITE_MAP_TILE_URL as string | undefined)?.trim() || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+export const TILE_ATTRIBUTION =
+  (env.VITE_MAP_TILE_ATTRIBUTION as string | undefined)?.trim() ||
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';

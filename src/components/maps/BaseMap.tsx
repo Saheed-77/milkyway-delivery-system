@@ -1,18 +1,10 @@
 import "leaflet/dist/leaflet.css";
 import { useEffect, type ReactNode } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
-import { useTheme } from "next-themes";
 import type { LatLngBoundsExpression, LatLngExpression, Map as LeafletMap } from "leaflet";
-import { MAP_CENTER } from "@/config/env";
+import { MAP_CENTER, TILE_ATTRIBUTION, TILE_URL } from "@/config/env";
 import { boundsOf, type LatLng } from "@/lib/geo";
 import { cn } from "@/lib/utils";
-
-const TILES = {
-  light: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-};
-const ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 interface BaseMapProps {
   center?: LatLngExpression;
@@ -69,8 +61,6 @@ export function BaseMap({
   onReady,
   ariaLabel = "Map",
 }: BaseMapProps) {
-  const { resolvedTheme } = useTheme();
-  const dark = resolvedTheme === "dark";
   return (
     <div className={cn("relative isolate overflow-hidden rounded-2xl border bg-muted", className)} role="region" aria-label={ariaLabel}>
       <MapContainer
@@ -81,7 +71,8 @@ export function BaseMap({
         zoomControl
         attributionControl
       >
-        <TileLayer key={dark ? "dark" : "light"} url={dark ? TILES.dark : TILES.light} attribution={ATTRIBUTION} subdomains="abcd" maxZoom={20} />
+        {/* dark mode is a CSS filter on the tile pane (see index.css), so one tile source serves both themes */}
+        <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
         <AutoResize />
         {fitTo && fitTo.length > 0 && <FitBounds points={fitTo} padding={fitPadding} />}
         {onReady && <Ready onReady={onReady} />}
