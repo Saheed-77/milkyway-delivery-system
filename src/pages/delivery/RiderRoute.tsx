@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Marker, Popup } from "react-leaflet";
@@ -61,17 +61,22 @@ export default function RiderRoute() {
   const assigned = useMemo(() => stops.data?.assigned ?? [], [stops.data]);
   const current: LatLng | null = gps.position ?? (myLoc.data ? { lat: myLoc.data.lat, lng: myLoc.data.lng } : null) ?? depot.data ?? null;
 
-  // Optimise once per set of stops (not on every GPS tick) so the order is stable.
+  // Optimise once per set of stops (not on every GPS tick) so the order is
+  // stable; memoise only the id order so cards always show fresh status.
   const stopKey = assigned.map((o) => o.id).sort().join(",");
-  const ordered = useMemo(() => {
-    const pinned = assigned.filter(hasPin).map((o) => ({ ...pos(o), o }));
-    const start = current ?? depot.data;
-    const sorted = start ? optimizeStops(start, pinned).map((x) => x.o) : pinned.map((x) => x.o);
-    return [...sorted, ...assigned.filter((o) => !hasPin(o))];
+  const orderIds = useMemo(() => {
+    const pinned = assigned.filter(hasPin).map((o) => ({ ...pos(o), id: o.id }));
+    const from = current ?? depot.data;
+    const sorted = from ? optimizeStops(from, pinned).map((x) => x.id) : pinned.map((x) => x.id);
+    return [...sorted, ...assigned.filter((o) => !hasPin(o)).map((o) => o.id)];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopKey, depot.data?.id]);
+  const ordered = orderIds.map((id) => assigned.find((o) => o.id === id)).filter((o): o is Order => !!o);
 
-  const routeStart = useMemo(() => current, [stopKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Route from where the rider was when this set of stops was planned.
+  const routeStartRef = useRef<{ key: string; pos: LatLng } | null>(null);
+  if (current && routeStartRef.current?.key !== stopKey) routeStartRef.current = { key: stopKey, pos: current };
+  const routeStart = routeStartRef.current?.pos ?? null;
   const waypoints = routeStart ? [routeStart, ...ordered.filter(hasPin).map(pos)] : null;
   const { route } = useRoute(waypoints && waypoints.length > 1 ? waypoints : null);
 
