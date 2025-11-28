@@ -93,7 +93,11 @@ export default function TrackOrder() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="relative">
-          <BaseMap className="h-[52vh] min-h-[320px] lg:h-[calc(100svh-12rem)]" fitTo={fitPoints} fitPadding={70} ariaLabel="Live delivery map">
+          <BaseMap
+            className="h-[52vh] min-h-[320px] lg:h-[calc(100svh-12rem)]"
+            fitTo={fitPoints}
+            fitKey={`${order.id}|${order.status}|${!!rider}`}
+            fitPadding={70} ariaLabel="Live delivery map">
             {route && <RouteLine path={route.path} estimated={route.source === "estimate"} muted={!onTheWay} />}
             <Marker position={data.depot} icon={depotIcon}>
               <Popup>

@@ -119,7 +119,11 @@ export default function RiderRoute() {
       {gps.error && <p className="rounded-xl bg-destructive-soft px-3 py-2 text-sm text-destructive">{gps.error}</p>}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
-        <BaseMap className="h-[45vh] min-h-[300px] lg:h-[calc(100svh-13rem)]" fitTo={fitPoints} fitPadding={60} ariaLabel="Route map">
+        <BaseMap
+          className="h-[45vh] min-h-[300px] lg:h-[calc(100svh-13rem)]"
+          fitTo={fitPoints}
+          fitKey={`${stopKey}|${!!current}`}
+          fitPadding={60} ariaLabel="Route map">
           {route && <RouteLine path={route.path} estimated={route.source === "estimate"} />}
           {depot.data && (
             <Marker position={depot.data} icon={depotIcon}>

@@ -108,7 +108,11 @@ export default function LiveOps() {
 
       <div className="grid gap-4 xl:grid-cols-[1fr_400px]">
         <div className="relative">
-          <BaseMap className="h-[55vh] min-h-[360px] xl:h-[calc(100svh-13rem)]" fitTo={fit.length ? fit : undefined} fitPadding={50} ariaLabel="Live operations map">
+          <BaseMap
+            className="h-[55vh] min-h-[360px] xl:h-[calc(100svh-13rem)]"
+            fitTo={fit.length ? fit : undefined}
+            fitKey={`${active.map((o) => o.id).sort().join(",")}|${riderList.length}|${depot.data?.id ?? ""}`}
+            fitPadding={50} ariaLabel="Live operations map">
             {depot.data && (
               <Marker position={depot.data} icon={depotIcon}>
                 <Tooltip direction="top" offset={[0, -36]}>
