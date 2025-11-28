@@ -157,13 +157,14 @@ export function AppShell({ role }: { role: UserRole }) {
           <ThemeToggle />
           <UserMenu />
         </header>
-        <main className={cn("flex-1 px-4 py-5 sm:px-6 sm:py-7 lg:px-8", hasBottomNav && "pb-28 md:pb-8")}>
+        {/* SidebarInset is already the <main> landmark */}
+        <div className={cn("flex-1 px-4 py-5 sm:px-6 sm:py-7 lg:px-8", hasBottomNav && "pb-28 md:pb-8")}>
           <div className="mx-auto w-full max-w-7xl animate-fade-in">
             <Suspense fallback={<PageSkeleton />}>
               <Outlet />
             </Suspense>
           </div>
-        </main>
+        </div>
       </SidebarInset>
 
       {hasBottomNav && <MobileBottomNav role={role} />}
