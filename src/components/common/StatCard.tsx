@@ -67,7 +67,7 @@ export function StatCard({
           {loading ? (
             <Skeleton className="h-8 w-24" />
           ) : (
-            <p className="whitespace-nowrap text-xl font-bold leading-tight tabular-nums sm:text-2xl">{value}</p>
+            <p className="truncate text-lg font-bold leading-tight tabular-nums sm:text-2xl">{value}</p>
           )}
           {(hint || trend !== undefined) && !loading && (
             <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -88,7 +88,7 @@ export function StatCard({
           )}
         </div>
         {Icon && (
-          <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl sm:h-11 sm:w-11", toneStyles[tone])}>
+          <div className={cn("hidden h-11 w-11 shrink-0 place-items-center rounded-xl sm:grid", toneStyles[tone])}>
             <Icon className="h-5 w-5" />
           </div>
         )}
