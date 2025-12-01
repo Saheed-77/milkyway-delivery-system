@@ -85,7 +85,7 @@ export default function AdminReports() {
           </Tabs>
         }
       />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
         <StatCard label="Revenue" value={formatCurrency(revenue)} icon={IndianRupee} />
         <StatCard label="Orders" value={valid.length} icon={ShoppingBasket} tone="info" />
         <StatCard label="Milk sold" value={formatLiters(liters, 0)} icon={Milk} tone="success" />
