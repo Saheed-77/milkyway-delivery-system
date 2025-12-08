@@ -3,10 +3,10 @@ import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { MilkType } from "@/services";
 
-export function LogoMark({ className }: { className?: string }) {
+export function LogoMark({ className, inverted }: { className?: string; inverted?: boolean }) {
   return (
     <svg viewBox="0 0 64 64" aria-hidden className={cn("h-9 w-9", className)}>
-      <rect width="64" height="64" rx="18" className="fill-primary" />
+      <rect width="64" height="64" rx="18" className={inverted ? "fill-white/15" : "fill-primary"} />
       <path d="M24 12h16v6l4 8v24a4 4 0 0 1-4 4H24a4 4 0 0 1-4-4V26l4-8z" fill="hsl(48 40% 97%)" />
       <path d="M20 34c6-4 12 4 24 0v16a4 4 0 0 1-4 4H24a4 4 0 0 1-4-4z" fill="hsl(208 72% 86%)" />
       <rect x="23" y="10" width="18" height="5" rx="2" fill="hsl(150 30% 22%)" />
@@ -14,10 +14,21 @@ export function LogoMark({ className }: { className?: string }) {
   );
 }
 
-export function Logo({ to = "/", className, compact }: { to?: string; className?: string; compact?: boolean }) {
+export function Logo({
+  to = "/",
+  className,
+  compact,
+  inverted,
+}: {
+  to?: string;
+  className?: string;
+  compact?: boolean;
+  /** For use on the primary-coloured brand panel. */
+  inverted?: boolean;
+}) {
   return (
     <Link to={to} className={cn("flex items-center gap-2.5 font-bold tracking-tight", className)} aria-label="MilkyWay home">
-      <LogoMark />
+      <LogoMark inverted={inverted} />
       {!compact && (
         <span className="text-lg leading-none">
           Milky<span className="text-primary">Way</span>

@@ -88,7 +88,7 @@ const Auth = () => {
         <div className="bg-dots absolute inset-0 opacity-30" aria-hidden />
         <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[hsl(208_72%_70%/0.25)] blur-3xl" aria-hidden />
         <div className="absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-[hsl(48_60%_90%/0.18)] blur-3xl" aria-hidden />
-        <Logo className="relative text-primary-foreground [&_span_span]:text-[hsl(208_72%_86%)]" />
+        <Logo inverted className="relative text-primary-foreground [&_span_span]:text-[hsl(208_72%_86%)]" />
         <div className="relative space-y-6">
           <span className={cn("inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm font-semibold")}>
             <Icon className="h-4 w-4" /> {meta.label} portal
