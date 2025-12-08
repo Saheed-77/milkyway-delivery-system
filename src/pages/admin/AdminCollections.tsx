@@ -44,7 +44,7 @@ export default function AdminCollections() {
   return (
     <div className="space-y-6">
       <PageHeader title="Collections" description="Record farmer deliveries and review everything collected." />
-      <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
         <CollectionForm />
         <StockPanel />
       </div>

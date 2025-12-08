@@ -38,7 +38,7 @@ export default function Stops() {
         {assigned.length === 0 ? (
           <EmptyState icon={ClipboardList} title="No assigned stops" description="Claim an available order below or wait for dispatch." compact />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {assigned.map((o) => (
               <OrderCard
                 key={o.id}
@@ -81,7 +81,7 @@ export default function Stops() {
         {available.length === 0 ? (
           <EmptyState icon={Hand} title="Nothing waiting" description="All orders have a rider." compact />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {available.map((o) => (
               <OrderCard
                 key={o.id}

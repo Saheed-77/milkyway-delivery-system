@@ -120,14 +120,14 @@ export default function OrderMilk() {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           <section aria-labelledby="choose-milk" className="space-y-3">
             <h2 id="choose-milk" className="text-lg font-semibold">
               1. Choose your milk
             </h2>
             {products.isLoading ? (
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {MILK_TYPES.map((m) => (
                   <CardSkeleton key={m} lines={2} />
                 ))}
@@ -135,7 +135,7 @@ export default function OrderMilk() {
             ) : products.error ? (
               <ErrorState error={products.error} onRetry={() => products.refetch()} />
             ) : (
-              <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Milk type">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Milk type">
                 {MILK_TYPES.map((m) => {
                   const p = byType.get(m);
                   const isSel = milkType === m;

@@ -106,7 +106,7 @@ export default function LiveOps() {
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_400px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_400px]">
         <div className="relative">
           <BaseMap
             className="h-[55vh] min-h-[360px] xl:h-[calc(100svh-13rem)]"

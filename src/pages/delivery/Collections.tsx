@@ -16,7 +16,7 @@ export default function Collections() {
   return (
     <div className="space-y-6">
       <PageHeader title="Milk collection" description="Record farmer deliveries at the collection point with a quality check." />
-      <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
         <CollectionForm />
         <Card>
           <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">

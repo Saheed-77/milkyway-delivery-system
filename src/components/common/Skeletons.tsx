@@ -52,7 +52,7 @@ export function PageSkeleton() {
         <Skeleton className="h-4 w-80 max-w-full" />
       </div>
       <StatGridSkeleton />
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <CardSkeleton className="lg:col-span-2" lines={6} />
         <CardSkeleton />
       </div>

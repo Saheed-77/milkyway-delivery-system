@@ -63,7 +63,7 @@ export default function TrackOrder() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
         <CardSkeleton className="h-[420px]" />
         <CardSkeleton />
       </div>
@@ -91,7 +91,7 @@ export default function TrackOrder() {
         <StatusBadge status={orderDisplayStatus(order)} className="text-sm" />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
         <div className="relative">
           <BaseMap
             className="h-[52vh] min-h-[320px] lg:h-[calc(100svh-12rem)]"

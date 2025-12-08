@@ -67,7 +67,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Settings" description="Your profile, delivery location and app preferences." />
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
         <Card>
           <CardHeader>
             <CardTitle>Profile</CardTitle>
@@ -75,7 +75,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={save} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="first">First name</Label>
                   <Input id="first" value={form.first_name} onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))} />

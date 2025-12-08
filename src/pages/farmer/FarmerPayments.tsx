@@ -24,7 +24,7 @@ export default function FarmerPayments() {
     <div className="space-y-6">
       <PageHeader title="Payments" description="Request payouts for collected milk. Approved payments go straight to your wallet." />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_2fr]">
         <Card className="border-primary/30 bg-primary-soft/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

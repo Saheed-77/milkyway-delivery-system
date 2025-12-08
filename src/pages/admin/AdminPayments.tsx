@@ -74,7 +74,7 @@ export default function AdminPayments() {
             {pending.length === 0 ? (
               <EmptyState icon={CheckCircle2} title="All caught up" description="No payment requests are waiting." compact />
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {pending.map((p) => (
                   <Card key={p.id}>
                     <CardHeader className="flex-row items-start gap-3 space-y-0">

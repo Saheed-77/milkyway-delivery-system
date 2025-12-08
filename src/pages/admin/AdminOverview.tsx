@@ -91,7 +91,7 @@ export default function AdminOverview() {
         </Card>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Revenue — last 14 days</CardTitle>
@@ -104,7 +104,7 @@ export default function AdminOverview() {
         <StockPanel compact />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Supply vs. demand</CardTitle>

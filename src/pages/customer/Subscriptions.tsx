@@ -38,7 +38,7 @@ function NewSubscription({ onDone }: { onDone: () => void }) {
       </CardHeader>
       <CardContent>
         <form
-          className="grid gap-4 sm:grid-cols-3"
+          className="grid grid-cols-1 gap-4 sm:grid-cols-3"
           onSubmit={(e) => {
             e.preventDefault();
             if (!valid) return;

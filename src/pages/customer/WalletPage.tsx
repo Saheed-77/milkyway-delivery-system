@@ -24,7 +24,7 @@ export default function WalletPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Wallet" description="Pay for orders and subscriptions in one tap. Refunds land here instantly." />
-      <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[380px_1fr]">
         <div className="space-y-4">
           <Card className="overflow-hidden border-0 bg-primary text-primary-foreground">
             <CardContent className="relative p-6">

@@ -44,7 +44,7 @@ function FarmerPrices() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {MILK_TYPES.map((m) => (
             <div key={m} className="space-y-1.5">
               <Label htmlFor={`fp-${m}`} className="flex items-center gap-1.5">
@@ -120,7 +120,7 @@ export default function AdminPricing() {
   return (
     <div className="space-y-6">
       <PageHeader title="Pricing" description="Set what farmers are paid and what customers are charged." />
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <FarmerPrices />
         <Card>
           <CardHeader>

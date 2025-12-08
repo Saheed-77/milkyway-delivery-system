@@ -89,7 +89,7 @@ export default function RiderRoute() {
 
   if (stops.isLoading || depot.isLoading) {
     return (
-      <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_400px]">
         <CardSkeleton className="h-[480px]" />
         <CardSkeleton lines={6} />
       </div>
@@ -118,7 +118,7 @@ export default function RiderRoute() {
       </div>
       {gps.error && <p className="rounded-xl bg-destructive-soft px-3 py-2 text-sm text-destructive">{gps.error}</p>}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_400px]">
         <BaseMap
           className="h-[45vh] min-h-[300px] lg:h-[calc(100svh-13rem)]"
           fitTo={fitPoints}

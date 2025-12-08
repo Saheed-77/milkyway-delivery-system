@@ -59,7 +59,7 @@ function RegisterFarmerDialog() {
           <DialogTitle>Register a farmer</DialogTitle>
           <DialogDescription>Creates an approved farmer account with a temporary password they can change later.</DialogDescription>
         </DialogHeader>
-        <form id="register-farmer" onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+        <form id="register-farmer" onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(
             [
               ["firstName", "First name", "text"],
@@ -185,7 +185,7 @@ export default function AdminFarmers() {
           compact
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((f) => (
             <FarmerCard key={f.id} farmer={f} />
           ))}
