@@ -8,7 +8,7 @@ export type UserRole = "admin" | "farmer" | "customer" | "delivery";
 export type AccountStatus = "pending" | "approved" | "rejected";
 export type MilkType = "cow" | "buffalo" | "goat";
 export type OrderStatus = "pending" | "out_for_delivery" | "completed" | "cancelled";
-export type PaymentMethod = "wallet" | "cash";
+export type PaymentMethod = "wallet" | "cash" | "online";
 export type TxnType = "deposit" | "withdrawal";
 export type TxnStatus = "pending" | "completed" | "failed";
 export type PaymentStatus = "pending" | "approved" | "rejected";
@@ -74,6 +74,14 @@ export interface OrderItem {
   unit_price: number;
 }
 
+/** A booked delivery window; null on an order means "express" (within the hour). */
+export interface OrderSlot {
+  id: string;
+  date: string; // YYYY-MM-DD
+  start: string; // HH:MM
+  end: string; // HH:MM
+}
+
 export interface Order {
   id: string;
   customer_id: string;
@@ -95,6 +103,11 @@ export interface Order {
   delivered_at: string | null;
   created_at: string;
   items: OrderItem[];
+  delivery_slot: OrderSlot | null;
+  /** Gateway payment id for online orders (e.g. pay_ABC123). */
+  payment_ref: string | null;
+  /** Human-readable method for online payments, e.g. "UPI · priya@okhdfc". */
+  payment_method_detail: string | null;
   /** Total liters across items. */
   quantity: number;
   source: "order" | "subscription";
@@ -108,6 +121,55 @@ export interface PlaceOrderInput {
   lat?: number | null;
   lng?: number | null;
   notes?: string;
+  /** Delivery slot id; omit for express delivery. */
+  slotId?: string | null;
+  /** Required when paymentMethod is "online": a captured gateway order of the exact total. */
+  gatewayOrderId?: string | null;
+}
+
+export type GatewayPurpose = "wallet_topup" | "order";
+export type GatewayMethod = "upi" | "card" | "netbanking" | "wallet";
+export type GatewayStatus = "created" | "captured" | "failed" | "refunded";
+
+/** Razorpay-style order created before checkout opens. */
+export interface GatewayOrder {
+  id: string; // order_XXXX
+  amount: number;
+  currency: "INR";
+  purpose: GatewayPurpose;
+  status: GatewayStatus;
+}
+
+export interface GatewayPayment {
+  id: string; // pay_XXXX (assigned on capture/failure)
+  gateway_order_id: string;
+  amount: number;
+  purpose: GatewayPurpose;
+  method: GatewayMethod | null;
+  method_detail: string | null;
+  status: GatewayStatus;
+  failure_reason: string | null;
+  order_id: string | null;
+  created_at: string;
+  refunded_at: string | null;
+}
+
+export interface CapturePaymentInput {
+  method: GatewayMethod;
+  /** Display-safe detail only: UPI id, card network + last 4, bank or wallet name. Never full card data. */
+  detail: string;
+}
+
+export interface DeliverySlot {
+  id: string;
+  date: string;
+  start: string; // HH:MM
+  end: string; // HH:MM
+  capacity: number;
+  booked: number;
+  is_active: boolean;
+  /** Bookable right now: active, not full and before the cutoff. */
+  available: boolean;
 }
 
 export interface WalletTransaction {
@@ -130,6 +192,10 @@ export interface Subscription {
   status: SubscriptionStatus;
   next_delivery: string | null;
   created_at: string;
+  /** Preferred delivery window start (HH:MM), null = any morning slot. */
+  preferred_slot_start: string | null;
+  /** Upcoming dates (YYYY-MM-DD) the customer has skipped — vacation or one-off. */
+  skip_dates: string[];
 }
 
 export interface CreateSubscriptionInput {

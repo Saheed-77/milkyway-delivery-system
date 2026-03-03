@@ -1,15 +1,20 @@
 import type {
   AccountStatus,
   AppNotification,
+  CapturePaymentInput,
   CollectionInput,
   CollectionResult,
   Contribution,
   CreateFarmerInput,
   CreateSubscriptionInput,
   DateRange,
+  DeliverySlot,
   Depot,
   Farmer,
   FarmerPayment,
+  GatewayOrder,
+  GatewayPayment,
+  GatewayPurpose,
   InventoryArchiveRow,
   InventorySummary,
   MilkPrice,
@@ -45,7 +50,9 @@ export type ChangeTopic =
   | "contributions"
   | "subscriptions"
   | "pricing"
-  | "rider_locations";
+  | "rider_locations"
+  | "gateway"
+  | "slots";
 
 export interface AuthApi {
   getProfile(): Promise<Profile | null>;
@@ -71,7 +78,26 @@ export interface DataApi {
   wallet: {
     balance(): Promise<number>;
     transactions(limit?: number): Promise<WalletTransaction[]>;
-    recharge(amount: number): Promise<void>;
+  };
+
+  /**
+   * Razorpay-shaped payment gateway (simulated / test mode). Flow:
+   * createOrder → checkout UI → capture (or fail). Capturing a wallet top-up
+   * credits the wallet exactly once; an "order" payment is consumed by
+   * orders.place and refunded if the order is cancelled or can't be created.
+   */
+  gateway: {
+    createOrder(input: { amount: number; purpose: GatewayPurpose }): Promise<GatewayOrder>;
+    capture(gatewayOrderId: string, input: CapturePaymentInput): Promise<GatewayPayment>;
+    fail(gatewayOrderId: string, input: CapturePaymentInput & { reason: string }): Promise<GatewayPayment>;
+    mine(): Promise<GatewayPayment[]>;
+  };
+
+  slots: {
+    /** Delivery windows for `days` days starting `from` (YYYY-MM-DD), with live booking counts. */
+    list(from: string, days: number): Promise<DeliverySlot[]>;
+    /** Admin */
+    update(id: string, patch: Partial<Pick<DeliverySlot, "capacity" | "is_active">>): Promise<void>;
   };
 
   orders: {
@@ -89,6 +115,9 @@ export interface DataApi {
     mine(): Promise<Subscription[]>;
     create(input: CreateSubscriptionInput): Promise<void>;
     setStatus(id: string, status: SubscriptionStatus): Promise<void>;
+    update(id: string, patch: { preferred_slot_start?: string | null }): Promise<void>;
+    /** Skip (or un-skip) future delivery dates — one-off skips and vacation ranges. */
+    setSkips(id: string, dates: string[], skip: boolean): Promise<void>;
     /** Admin: bill active subscriptions into delivery orders for a date. */
     generateOrders(date?: string): Promise<number>;
   };
