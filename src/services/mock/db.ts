@@ -8,6 +8,9 @@ import type {
   AccountStatus,
   Depot,
   Frequency,
+  GatewayMethod,
+  GatewayPurpose,
+  GatewayStatus,
   MilkPrice,
   MilkType,
   OrderStatus,
@@ -55,6 +58,9 @@ export interface DbOrder {
   created_at: string;
   source: "order" | "subscription";
   subscription_id?: string | null;
+  delivery_slot_id?: string | null;
+  /** Gateway payment (pay_…) for online orders. */
+  gateway_payment_id?: string | null;
 }
 
 export interface DbOrderItem {
@@ -119,6 +125,38 @@ export interface DbReservation {
   reservation_type: "subscription";
 }
 
+export interface DbGatewayPayment {
+  /** Razorpay-style order id (order_…), created before checkout. */
+  gateway_order_id: string;
+  /** Payment id (pay_…), set on capture/failure. */
+  id: string | null;
+  user_id: string;
+  amount: number;
+  purpose: GatewayPurpose;
+  method: GatewayMethod | null;
+  method_detail: string | null;
+  status: GatewayStatus;
+  failure_reason: string | null;
+  order_id: string | null;
+  created_at: string;
+  captured_at: string | null;
+  refunded_at: string | null;
+}
+
+export interface DbSlot {
+  id: string;
+  slot_date: string;
+  start_time: string; // HH:MM
+  end_time: string;
+  capacity: number;
+  is_active: boolean;
+}
+
+export interface DbSubscriptionSkip {
+  subscription_id: string;
+  skip_date: string;
+}
+
 export interface DbSubscription {
   id: string;
   customer_id: string;
@@ -129,6 +167,7 @@ export interface DbSubscription {
   status: SubscriptionStatus;
   next_delivery: string | null;
   created_at: string;
+  preferred_slot_start?: string | null;
 }
 
 export interface DbNotification {
@@ -159,6 +198,9 @@ export interface DemoDb {
   archive: DbArchive[];
   reservations: DbReservation[];
   subscriptions: DbSubscription[];
+  subscriptionSkips: DbSubscriptionSkip[];
+  slots: DbSlot[];
+  gatewayPayments: DbGatewayPayment[];
   riderLocations: RiderLocation[];
   notifications: DbNotification[];
   nextFarmerCode: number;
@@ -168,7 +210,7 @@ export interface DemoDb {
   selfDrive?: Record<string, boolean>;
 }
 
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 export const DB_KEY = "milkyway.demo.db";
 export const SESSION_KEY = "milkyway.demo.session";
 
@@ -178,6 +220,14 @@ export const DEMO_ACCOUNTS: Record<UserRole, string> = {
   customer: "priya@milkyway.demo",
   delivery: "arjun@milkyway.demo",
 };
+
+/** Razorpay-like ids: order_/pay_ + 14 base62 chars. */
+export function gatewayId(prefix: "order" | "pay"): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let out = "";
+  for (let i = 0; i < 14; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return `${prefix}_${out}`;
+}
 
 let counter = 0;
 export function uid(prefix = ""): string {
