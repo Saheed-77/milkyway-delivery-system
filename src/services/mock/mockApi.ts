@@ -5,12 +5,25 @@
  */
 import { addDays, fullName, round2, toLocalISODate } from "@/lib/format";
 import { haversine } from "@/lib/geo";
+import {
+  DEFAULT_SLOT_CAPACITY,
+  DEFAULT_WINDOWS,
+  MAX_SKIP_AHEAD_DAYS,
+  MAX_VACATION_DAYS,
+  SLOT_DAYS_AHEAD,
+  isDueOn,
+  isSlotClosed,
+  nextDeliveryDate,
+  slotStartDate,
+} from "@/lib/schedule";
 import type { ChangeTopic, DataApi } from "../api";
 import type {
   AccountStatus,
   AppNotification,
   Contribution,
   DateRange,
+  DeliverySlot,
+  GatewayPayment,
   Farmer,
   FarmerPayment,
   MilkPrice,
@@ -24,7 +37,18 @@ import type {
   UserRole,
 } from "../types";
 import { MILK_TYPES } from "../types";
-import { DEMO_ACCOUNTS, uid, type DbNotification, type DbOrder, type DbProfile, type DemoDb } from "./db";
+import {
+  DEMO_ACCOUNTS,
+  gatewayId,
+  uid,
+  type DbGatewayPayment,
+  type DbNotification,
+  type DbOrder,
+  type DbProfile,
+  type DbSlot,
+  type DbSubscription,
+  type DemoDb,
+} from "./db";
 import { getStore } from "./store";
 
 // Lazily created so live mode never touches demo storage.
@@ -150,6 +174,12 @@ function toOrder(o: DbOrder, viewer?: DbProfile): Order {
     delivered_at: o.delivered_at,
     created_at: o.created_at,
     items,
+    delivery_slot: (() => {
+      const slot = slotOf(o);
+      return slot ? { id: slot.id, date: slot.slot_date, start: slot.start_time, end: slot.end_time } : null;
+    })(),
+    payment_ref: o.gateway_payment_id ?? null,
+    payment_method_detail: gatewayById(o.gateway_payment_id)?.method_detail ?? null,
     quantity: items.reduce((s, i) => s + i.quantity, 0),
     source: o.source,
   };
@@ -227,6 +257,111 @@ function restoreStock(orderId: string) {
     .orderItems.filter((i) => i.order_id === orderId)
     .reduce((s, i) => s + i.quantity, 0);
   stockRow().total_stock = round2(stockRow().total_stock + qty);
+}
+
+/* ------------------------------------------------- slots & payments */
+
+const addDaysISO = (date: string, n: number) => toLocalISODate(addDays(new Date(`${date}T12:00:00`), n));
+
+/** Create the default delivery windows for a date range on demand (like get_delivery_slots). */
+function ensureSlots(from: string, days: number): DbSlot[] {
+  const out: DbSlot[] = [];
+  for (let i = 0; i < Math.min(days, 14); i++) {
+    const date = addDaysISO(from, i);
+    for (const w of DEFAULT_WINDOWS) {
+      let slot = db().slots.find((x) => x.slot_date === date && x.start_time === w.start);
+      if (!slot) {
+        slot = { id: uid("slot"), slot_date: date, start_time: w.start, end_time: w.end, capacity: DEFAULT_SLOT_CAPACITY, is_active: true };
+        db().slots.push(slot);
+      }
+      out.push(slot);
+    }
+  }
+  return out;
+}
+
+const slotBooked = (slotId: string) =>
+  db().orders.filter((o) => o.delivery_slot_id === slotId && o.status !== "cancelled").length;
+
+function toSlot(x: DbSlot): DeliverySlot {
+  const booked = slotBooked(x.id);
+  return {
+    id: x.id,
+    date: x.slot_date,
+    start: x.start_time,
+    end: x.end_time,
+    capacity: x.capacity,
+    booked,
+    is_active: x.is_active,
+    available: x.is_active && booked < x.capacity && !isSlotClosed(x.slot_date, x.start_time),
+  };
+}
+
+const slotOf = (o: DbOrder) => (o.delivery_slot_id ? db().slots.find((x) => x.id === o.delivery_slot_id) : undefined);
+
+/** Minutes until the order's slot starts; express orders are always due (0). */
+export function minutesUntilSlot(o: DbOrder, now = Date.now()): number {
+  const slot = slotOf(o);
+  if (!slot) return 0;
+  return (slotStartDate(slot.slot_date, slot.start_time).getTime() - now) / 60_000;
+}
+
+/** Orders are dispatched to riders 90 minutes before their slot (express: immediately). */
+export const isDispatchable = (o: DbOrder) => minutesUntilSlot(o) <= 90;
+
+const gatewayByOrder = (gatewayOrderId: string) => db().gatewayPayments.find((g) => g.gateway_order_id === gatewayOrderId);
+const gatewayById = (paymentId: string | null | undefined) =>
+  paymentId ? db().gatewayPayments.find((g) => g.id === paymentId) : undefined;
+
+const METHOD_LABEL: Record<string, string> = { upi: "UPI", card: "Card", netbanking: "Netbanking", wallet: "Wallet" };
+
+function toGateway(g: DbGatewayPayment): GatewayPayment {
+  return {
+    id: g.id ?? g.gateway_order_id,
+    gateway_order_id: g.gateway_order_id,
+    amount: g.amount,
+    purpose: g.purpose,
+    method: g.method,
+    method_detail: g.method_detail,
+    status: g.status,
+    failure_reason: g.failure_reason,
+    order_id: g.order_id,
+    created_at: g.created_at,
+    refunded_at: g.refunded_at,
+  };
+}
+
+/** Simulated refund to the original payment method (instant in test mode). */
+function refundGateway(g: DbGatewayPayment, why: string) {
+  if (g.status !== "captured") return;
+  g.status = "refunded";
+  g.refunded_at = nowIso();
+  notify({
+    audience: g.user_id,
+    title: "Refund initiated",
+    body: `₹${g.amount.toFixed(2)} ${why} is being refunded to your ${g.method_detail ?? "original payment method"}.`,
+    kind: "payment",
+    link: "/dashboard/customer/wallet",
+  });
+}
+
+const skipsOf = (subId: string) =>
+  db()
+    .subscriptionSkips.filter((k) => k.subscription_id === subId)
+    .map((k) => k.skip_date)
+    .sort();
+
+/** Quantity due from subscriptions on a date, honouring frequency and skips. */
+function subscriptionDemandOn(date: string): number {
+  return db()
+    .subscriptions.filter((x) => x.status === "active" && isDueOn(x, date) && !skipsOf(x.id).includes(date))
+    .reduce((sum, x) => sum + x.quantity, 0);
+}
+
+/** Pick the subscription's preferred window on a date, falling back to the next one with room. */
+function slotForSubscription(sub: DbSubscription, date: string): DbSlot | undefined {
+  const slots = ensureSlots(date, 1).filter((x) => x.is_active && slotBooked(x.id) < x.capacity);
+  return slots.find((x) => x.start_time === sub.preferred_slot_start) ?? slots[0];
 }
 
 /* ---------------------------------------------------------------- api */
@@ -343,21 +478,105 @@ export const mockApi: DataApi = {
       const uidMe = me().id;
       return clone(sortDesc(db().wallet.filter((t) => t.user_id === uidMe)).slice(0, limit));
     },
-    async recharge(amount) {
+  },
+
+  gateway: {
+    async createOrder({ amount, purpose }) {
       await latency();
       const p = me();
-      if (!(amount > 0) || amount > 100000) fail("Invalid recharge amount");
-      db().wallet.push({
-        id: uid("wt"),
+      if (purpose === "wallet_topup" && p.user_type !== "customer") fail("Only customers can top up a wallet");
+      if (!(amount >= 1) || amount > 100000) fail("Amount must be between ₹1 and ₹1,00,000");
+      const g: DbGatewayPayment = {
+        gateway_order_id: gatewayId("order"),
+        id: null,
         user_id: p.id,
         amount: round2(amount),
-        transaction_type: "deposit",
-        status: "completed",
-        description: "Wallet recharge",
+        purpose,
+        method: null,
+        method_detail: null,
+        status: "created",
+        failure_reason: null,
         order_id: null,
         created_at: nowIso(),
-      });
-      st().commit("wallet");
+        captured_at: null,
+        refunded_at: null,
+      };
+      db().gatewayPayments.push(g);
+      st().commit("gateway");
+      return { id: g.gateway_order_id, amount: g.amount, currency: "INR", purpose, status: "created" };
+    },
+    async capture(gatewayOrderId, { method, detail }) {
+      await latency();
+      const p = me();
+      const g = gatewayByOrder(gatewayOrderId);
+      if (!g || g.user_id !== p.id) fail("Payment not found");
+      if (g!.status !== "created") fail("This payment has already been processed");
+      if (!["upi", "card", "netbanking", "wallet"].includes(method)) fail("Unsupported payment method");
+      // only display-safe details are stored — never full card or account numbers
+      if (/\d{9,}/.test(detail.replace(/\s/g, ""))) fail("Payment details must not include full card or account numbers");
+      g!.id = gatewayId("pay");
+      g!.method = method;
+      g!.method_detail = detail.slice(0, 80);
+      g!.status = "captured";
+      g!.captured_at = nowIso();
+      if (g!.purpose === "wallet_topup") {
+        db().wallet.push({
+          id: uid("wt"),
+          user_id: p.id,
+          amount: g!.amount,
+          transaction_type: "deposit",
+          status: "completed",
+          description: `Wallet top-up · ${METHOD_LABEL[method]} (${g!.id})`,
+          order_id: null,
+          created_at: nowIso(),
+        });
+      }
+      st().commit("gateway", "wallet");
+      return toGateway(g!);
+    },
+    async fail(gatewayOrderId, { method, detail, reason }) {
+      await latency();
+      const p = me();
+      const g = gatewayByOrder(gatewayOrderId);
+      if (!g || g.user_id !== p.id) fail("Payment not found");
+      if (g!.status !== "created") fail("This payment has already been processed");
+      g!.id = gatewayId("pay");
+      g!.method = method;
+      g!.method_detail = detail.slice(0, 80);
+      g!.status = "failed";
+      g!.failure_reason = reason.slice(0, 160);
+      st().commit("gateway");
+      return toGateway(g!);
+    },
+    async mine() {
+      await latency();
+      const p = me();
+      return sortDesc(db().gatewayPayments.filter((g) => g.user_id === p.id && g.status !== "created")).map(toGateway);
+    },
+  },
+
+  slots: {
+    async list(from, days) {
+      await latency();
+      me();
+      const slots = ensureSlots(from, days).map(toSlot);
+      st().commit("slots");
+      return slots;
+    },
+    async update(id, patch) {
+      await latency();
+      requireRole("admin");
+      const slot = db().slots.find((x) => x.id === id);
+      if (!slot) fail("Slot not found");
+      if (patch.capacity !== undefined) {
+        const cap = Math.round(Number(patch.capacity));
+        if (!(cap >= 1) || cap > 500) fail("Capacity must be between 1 and 500");
+        const booked = slotBooked(slot!.id);
+        if (cap < booked) fail(`Capacity can't be below the ${booked} orders already booked`);
+        slot!.capacity = cap;
+      }
+      if (patch.is_active !== undefined) slot!.is_active = patch.is_active;
+      st().commit("slots");
     },
   },
 
@@ -373,8 +592,37 @@ export const mockApi: DataApi = {
         .sort((a, b) => a.price - b.price)[0];
       if (!product) fail(`No ${input.milkType} milk products available`);
       const total = round2(product!.price * qty);
+
+      // Online orders must reference a captured, unused gateway payment of this user.
+      let paid: DbGatewayPayment | undefined;
+      if (input.paymentMethod === "online") {
+        paid = input.gatewayOrderId ? gatewayByOrder(input.gatewayOrderId) : undefined;
+        if (!paid || paid.user_id !== p.id || paid.purpose !== "order") fail("Payment not found — please pay again");
+        if (paid!.status !== "captured") fail("Payment was not completed");
+        if (paid!.order_id) fail("This payment has already been used for another order");
+      }
+      // Anything that fails after money was taken refunds it automatically.
+      const rejectAfterPayment = (message: string): never => {
+        if (paid) {
+          refundGateway(paid, "for an order that couldn't be placed");
+          st().commit("gateway");
+          fail(`${message} Your payment has been refunded.`);
+        }
+        return fail(message);
+      };
+      if (paid && Math.abs(paid.amount - total) > 0.005) rejectAfterPayment("The amount paid doesn't match the order total.");
+
+      let slot: DbSlot | undefined;
+      if (input.slotId) {
+        slot = db().slots.find((x) => x.id === input.slotId);
+        if (!slot || !slot.is_active) rejectAfterPayment("That delivery slot isn't available.");
+        if (isSlotClosed(slot!.slot_date, slot!.start_time)) rejectAfterPayment("That slot has closed — pick a later window.");
+        if (slot!.slot_date > addDaysISO(today(), SLOT_DAYS_AHEAD)) rejectAfterPayment("Slots can be booked up to 3 days ahead.");
+        if (slotBooked(slot!.id) >= slot!.capacity) rejectAfterPayment("That slot just filled up — pick another window.");
+      }
+
       const row = stockRow();
-      if (row.total_stock - reservedOn(today()) < qty) fail("Insufficient stock available today");
+      if (row.total_stock - reservedOn(today()) < qty) rejectAfterPayment("Insufficient stock available today.");
       if (input.paymentMethod === "wallet") {
         const bal = balanceOf(p.id);
         if (bal < total) fail(`Insufficient wallet balance. Need ₹${(total - bal).toFixed(2)} more.`);
@@ -398,9 +646,12 @@ export const mockApi: DataApi = {
         delivered_at: null,
         created_at: nowIso(),
         source: "order",
+        delivery_slot_id: slot?.id ?? null,
+        gateway_payment_id: paid?.id ?? null,
       };
       db().orders.push(order);
       db().orderItems.push({ id: uid("oi"), order_id: order.id, product_id: product!.id, quantity: qty, unit_price: product!.price });
+      if (paid) paid.order_id = order.id;
       if (input.paymentMethod === "wallet") {
         db().wallet.push({
           id: uid("wt"),
@@ -417,11 +668,11 @@ export const mockApi: DataApi = {
       notify({
         audience: "admin",
         title: "New order",
-        body: `${fullName(p)} ordered ${qty} L of ${input.milkType} milk.`,
+        body: `${fullName(p)} ordered ${qty} L of ${input.milkType} milk${slot ? ` for ${slot.slot_date} ${slot.start_time}` : ""}.`,
         kind: "order",
         link: "/dashboard/admin/live",
       });
-      st().commit("orders", "wallet", "stock");
+      st().commit("orders", "wallet", "stock", "gateway", "slots");
       return order.id;
     },
 
@@ -450,11 +701,15 @@ export const mockApi: DataApi = {
           created_at: nowIso(),
         });
       }
+      if (o.payment_method === "online") {
+        const g = gatewayById(o.gateway_payment_id);
+        if (g) refundGateway(g, "for your cancelled order");
+      }
       restoreStock(o.id);
       if (o.delivery_person_id) {
         notify({ audience: o.delivery_person_id, title: "Stop cancelled", body: `An order for ${o.delivery_address} was cancelled.`, kind: "delivery", link: "/dashboard/delivery" });
       }
-      st().commit("orders", "wallet", "stock");
+      st().commit("orders", "wallet", "stock", "gateway", "slots");
     },
 
     async tracking(orderId) {
@@ -514,10 +769,44 @@ export const mockApi: DataApi = {
             quantity: s.quantity,
             frequency: s.frequency,
             status: s.status,
-            next_delivery: s.next_delivery,
+            next_delivery: nextDeliveryDate(s, skipsOf(s.id)),
             created_at: s.created_at,
+            preferred_slot_start: s.preferred_slot_start ?? null,
+            skip_dates: skipsOf(s.id).filter((d) => d >= today()),
           }))
       );
+    },
+    async update(id, patch) {
+      await latency();
+      const p = me();
+      const s = db().subscriptions.find((x) => x.id === id);
+      if (!s || (s.customer_id !== p.id && p.user_type !== "admin")) fail("Subscription not found");
+      if (patch.preferred_slot_start !== undefined) {
+        const start = patch.preferred_slot_start;
+        if (start !== null && !DEFAULT_WINDOWS.some((w) => w.start === start)) fail("Choose one of the delivery windows");
+        s!.preferred_slot_start = start;
+      }
+      st().commit("subscriptions");
+    },
+    async setSkips(id, dates, skip) {
+      await latency();
+      const p = me();
+      const s = db().subscriptions.find((x) => x.id === id);
+      if (!s || (s.customer_id !== p.id && p.user_type !== "admin")) fail("Subscription not found");
+      if (s!.status === "cancelled") fail("Cancelled subscriptions cannot be changed");
+      const unique = [...new Set(dates)].sort();
+      if (unique.length === 0) return;
+      if (skip && unique.length > MAX_VACATION_DAYS) fail(`A vacation can be at most ${MAX_VACATION_DAYS} days`);
+      const limit = addDaysISO(today(), MAX_SKIP_AHEAD_DAYS);
+      for (const d of unique) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) fail("Invalid date");
+        // today's delivery is already billed and on its way, so only future days can change
+        if (d <= today()) fail("You can only skip deliveries from tomorrow onwards");
+        if (d > limit) fail(`Skips can be planned up to ${MAX_SKIP_AHEAD_DAYS} days ahead`);
+      }
+      const others = db().subscriptionSkips.filter((k) => !(k.subscription_id === id && unique.includes(k.skip_date)));
+      db().subscriptionSkips = skip ? [...others, ...unique.map((d) => ({ subscription_id: id, skip_date: d }))] : others;
+      st().commit("subscriptions", "stock");
     },
     async create(input) {
       await latency();
@@ -535,6 +824,7 @@ export const mockApi: DataApi = {
         status: "active",
         next_delivery: addDays(new Date(), 1).toISOString(),
         created_at: nowIso(),
+        preferred_slot_start: input.preferredSlotStart ?? null,
       });
       st().commit("subscriptions", "stock");
     },
@@ -550,16 +840,11 @@ export const mockApi: DataApi = {
     async generateOrders(date = today()) {
       await latency();
       requireRole("admin");
-      const d = new Date(`${date}T07:00:00`);
       let created = 0;
       for (const s of db().subscriptions.filter((x) => x.status === "active")) {
-        const start = new Date(s.created_at);
-        const due =
-          s.frequency === "daily" ||
-          (s.frequency === "weekly" && start.getDay() === d.getDay()) ||
-          (s.frequency === "monthly" && start.getDate() === d.getDate());
-        if (!due) continue;
-        if (db().orders.some((o) => o.subscription_id === s.id && dateOf(o.created_at) === date)) continue;
+        if (!isDueOn(s, date)) continue;
+        if (skipsOf(s.id).includes(date)) continue; // vacation / skipped day: no order, no charge
+        if (db().orders.some((o) => o.subscription_id === s.id && (slotOf(o)?.slot_date ?? dateOf(o.created_at)) === date)) continue;
         const product = db().products.find((x) => x.id === s.product_id) ?? db().products.find((x) => x.milk_type === s.milk_type);
         const customer = profileById(s.customer_id);
         if (!product || !customer) continue;
@@ -586,6 +871,7 @@ export const mockApi: DataApi = {
           created_at: nowIso(),
           source: "subscription",
           subscription_id: s.id,
+          delivery_slot_id: slotForSubscription(s, date)?.id ?? null,
         };
         db().orders.push(order);
         db().orderItems.push({ id: uid("oi"), order_id: order.id, product_id: product.id, quantity: s.quantity, unit_price: product.price });
@@ -593,10 +879,10 @@ export const mockApi: DataApi = {
         stockRow().total_stock = round2(Math.max(0, stockRow().total_stock - s.quantity));
         const res = db().reservations.find((r) => r.reservation_date === date);
         if (res) res.reserved_amount = Math.max(0, round2(res.reserved_amount - s.quantity));
-        s.next_delivery = addDays(d, s.frequency === "daily" ? 1 : s.frequency === "weekly" ? 7 : 30).toISOString();
+        s.next_delivery = nextDeliveryDate(s, skipsOf(s.id), addDaysISO(date, 1));
         created++;
       }
-      st().commit("orders", "wallet", "stock", "subscriptions");
+      st().commit("orders", "wallet", "stock", "subscriptions", "slots");
       return created;
     },
   },
@@ -881,7 +1167,8 @@ export const mockApi: DataApi = {
       await latency();
       requireRole("admin");
       const tomorrow = toLocalISODate(addDays(new Date(), 1));
-      const amount = Math.ceil(subscriptionDemand());
+      // exact demand for tomorrow: due subscriptions minus skipped/vacation days
+      const amount = Math.ceil(subscriptionDemandOn(tomorrow));
       const existing = db().reservations.find((r) => r.reservation_date === tomorrow && r.reservation_type === "subscription");
       if (existing) existing.reserved_amount = amount;
       else db().reservations.push({ id: uid("sr"), reservation_date: tomorrow, reserved_amount: amount, reservation_type: "subscription" });
@@ -946,8 +1233,14 @@ export const mockApi: DataApi = {
       const p = requireRole("delivery");
       const open = (o: DbOrder) => o.status === "pending" || o.status === "out_for_delivery";
       return {
-        assigned: db().orders.filter((o) => o.delivery_person_id === p.id && open(o)).map((o) => toOrder(o, p)),
-        available: sortDesc(db().orders.filter((o) => !o.delivery_person_id && o.status === "pending").map((o) => toOrder(o, p))),
+        assigned: db()
+          .orders.filter((o) => o.delivery_person_id === p.id && open(o))
+          .sort((a, b) => minutesUntilSlot(a) - minutesUntilSlot(b))
+          .map((o) => toOrder(o, p)),
+        // scheduled orders show up once they're within the dispatch window
+        available: sortDesc(db().orders.filter((o) => !o.delivery_person_id && o.status === "pending" && isDispatchable(o))).map((o) =>
+          toOrder(o, p)
+        ),
       };
     },
     async myCompleted(range) {
@@ -1086,7 +1379,9 @@ export function autoAssignOrders(maxPerRider = 6, excludeRiderIds: string[] = []
   );
   let count = 0;
   const waiting = db()
-    .orders.filter((o) => o.status === "pending" && !o.delivery_person_id && o.delivery_lat != null && o.delivery_lng != null)
+    .orders.filter(
+      (o) => o.status === "pending" && !o.delivery_person_id && o.delivery_lat != null && o.delivery_lng != null && isDispatchable(o)
+    )
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
   for (const o of waiting) {
     const dest = { lat: o.delivery_lat!, lng: o.delivery_lng! };

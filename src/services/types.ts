@@ -202,6 +202,7 @@ export interface CreateSubscriptionInput {
   productId: string;
   quantity: number;
   frequency: Frequency;
+  preferredSlotStart?: string | null;
 }
 
 export interface Farmer {
