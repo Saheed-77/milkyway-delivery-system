@@ -5,10 +5,15 @@
  */
 import { MAP_CENTER } from "@/config/env";
 import { addDays, round2, toLocalISODate } from "@/lib/format";
+import { DEFAULT_SLOT_CAPACITY, DEFAULT_WINDOWS } from "@/lib/schedule";
 import type { Frequency, MilkPrice, MilkType, PaymentMethod, Product, QualityRating } from "../types";
 import {
   DB_VERSION,
+  gatewayId,
   uid,
+  type DbGatewayPayment,
+  type DbSlot,
+  type DbSubscriptionSkip,
   type DbContribution,
   type DbFarmer,
   type DbOrder,
@@ -281,9 +286,11 @@ export function buildSeed(now: Date = new Date()): DemoDb {
     ["u_c9", "p_cow", 15, "monthly", "active"],
     ["u_c11", "p_cow", 1, "daily", "paused"],
   ];
+  const preferred: Record<string, string> = { u_priya: "06:00", u_c2: "06:00", u_c3: "08:00", u_c6: "17:00" };
   subSeeds.forEach(([customer, product, quantity, frequency, status], i) => {
     const p = PRODUCTS.find((x) => x.id === product)!;
     subscriptions.push({
+      preferred_slot_start: preferred[customer] ?? null,
       id: uid("sub"),
       customer_id: customer,
       product_id: product,
@@ -295,6 +302,21 @@ export function buildSeed(now: Date = new Date()): DemoDb {
       created_at: at(40 - i * 3, 20),
     });
   });
+  // Priya skips one day this week; George (u_c6) is on vacation for five days
+  const subscriptionSkips: DbSubscriptionSkip[] = [];
+  const subOf = (c: string) => subscriptions.find((x) => x.customer_id === c)!;
+  subscriptionSkips.push({ subscription_id: subOf("u_priya").id, skip_date: dayISO(-3) });
+  for (let d = 1; d <= 5; d++) subscriptionSkips.push({ subscription_id: subOf("u_c6").id, skip_date: dayISO(-d) });
+
+  /* ---- delivery slots: today + 6 days from the default windows */
+  const slots: DbSlot[] = [];
+  for (let d = 0; d <= 6; d++) {
+    for (const w of DEFAULT_WINDOWS) {
+      slots.push({ id: uid("slot"), slot_date: dayISO(-d), start_time: w.start, end_time: w.end, capacity: DEFAULT_SLOT_CAPACITY, is_active: true });
+    }
+  }
+  const slotAt = (daysAhead: number, start: string) => slots.find((x) => x.slot_date === dayISO(-daysAhead) && x.start_time === start)!;
+
   const demand = subscriptions
     .filter((s) => s.status === "active")
     .reduce((s, x) => s + (x.frequency === "daily" ? x.quantity : x.frequency === "weekly" ? x.quantity / 7 : x.quantity / 30), 0);
@@ -317,6 +339,7 @@ export function buildSeed(now: Date = new Date()): DemoDb {
     picked?: string | null;
     delivered?: string | null;
     source?: "order" | "subscription";
+    slot?: DbSlot | null;
   }) => {
     const product = o.product ?? (rnd() < 0.6 ? PRODUCTS[0]! : rnd() < 0.6 ? PRODUCTS[1]! : PRODUCTS[2]!);
     const qty = o.qty ?? pick([1, 1, 1.5, 2, 2, 3]);
@@ -326,7 +349,7 @@ export function buildSeed(now: Date = new Date()): DemoDb {
       customer_id: o.customer,
       total_amount: round2(product.price * qty),
       status: o.status,
-      payment_method: o.method ?? (rnd() < 0.8 ? "wallet" : "cash"),
+      payment_method: o.method ?? (rnd() < 0.68 ? "wallet" : rnd() < 0.55 ? "online" : "cash"),
       delivery_person_id: o.rider ?? null,
       delivery_address: pos.address,
       delivery_lat: pos.lat,
@@ -338,6 +361,7 @@ export function buildSeed(now: Date = new Date()): DemoDb {
       delivered_at: o.delivered ?? null,
       created_at: o.created,
       source: o.source ?? "order",
+      delivery_slot_id: o.slot?.id ?? null,
     };
     orders.push(order);
     orderItems.push({ id: uid("oi"), order_id: order.id, product_id: product.id, quantity: qty, unit_price: product.price });
@@ -391,13 +415,76 @@ export function buildSeed(now: Date = new Date()): DemoDb {
     addOrder({ customer: c, status: "pending", rider: null, created: ago(int(3, 14)) });
   }
 
+  // scheduled orders for tomorrow's windows (dispatched ~90 min before each slot)
+  addOrder({ customer: "u_priya", product: PRODUCTS[1], qty: 1, method: "online", status: "pending", created: ago(70), slot: slotAt(1, "06:00") });
+  for (const c of ["u_c7", "u_c8", "u_c11", "u_c12", "u_c4"]) {
+    addOrder({ customer: c, status: "pending", created: ago(int(60, 600)), slot: slotAt(1, pick(["06:00", "06:00", "08:00"])) });
+  }
+  for (const c of ["u_c10", "u_c3"]) {
+    addOrder({ customer: c, status: "pending", created: ago(int(30, 300)), slot: slotAt(1, "17:00") });
+  }
+
+  /* ---- online payments (simulated Razorpay) for orders paid by UPI/card */
+  const gatewayPayments: DbGatewayPayment[] = [];
+  const UPI_HANDLES = ["okhdfc", "okicici", "oksbi", "ybl", "paytm"];
+  const methodFor = (customer: string): Pick<DbGatewayPayment, "method" | "method_detail"> =>
+    rnd() < 0.7
+      ? { method: "upi", method_detail: `UPI · ${customer.replace("u_", "")}@${pick(UPI_HANDLES)}` }
+      : { method: "card", method_detail: `Visa •••• ${pick(["1111", "4242", "0019"])}` };
+  for (const o of orders.filter((x) => x.payment_method === "online")) {
+    const m = methodFor(o.customer_id);
+    const payId = gatewayId("pay");
+    gatewayPayments.push({
+      gateway_order_id: gatewayId("order"),
+      id: payId,
+      user_id: o.customer_id,
+      amount: o.total_amount,
+      purpose: "order",
+      ...m,
+      status: o.status === "cancelled" ? "refunded" : "captured",
+      failure_reason: null,
+      order_id: o.id,
+      created_at: o.created_at,
+      captured_at: o.created_at,
+      refunded_at: o.status === "cancelled" ? new Date(new Date(o.created_at).getTime() + 20 * 60_000).toISOString() : null,
+    });
+    o.gateway_payment_id = payId;
+  }
+
   /* ---- customer wallets: recharges cover spend, plus refunds */
   for (const [customer] of CUSTOMERS) {
     const mine = orders.filter((o) => o.customer_id === customer && o.payment_method === "wallet");
     const spent = mine.reduce((s, o) => s + o.total_amount, 0);
     const topUp = Math.ceil((spent + 500 + rnd() * 1500) / 500) * 500;
-    wallet.push({ id: uid("wt"), user_id: customer, amount: Math.ceil(topUp * 0.6 / 100) * 100, transaction_type: "deposit", status: "completed", description: "Wallet recharge", order_id: null, created_at: at(30, 20) });
-    wallet.push({ id: uid("wt"), user_id: customer, amount: topUp - Math.ceil(topUp * 0.6 / 100) * 100, transaction_type: "deposit", status: "completed", description: "Wallet recharge", order_id: null, created_at: at(14, 21) });
+    // top-ups went through the (simulated) payment gateway: UPI, a declined card, then a good card
+    const first = Math.ceil((topUp * 0.6) / 100) * 100;
+    const handle = pick(UPI_HANDLES);
+    const topUps: [number, string, DbGatewayPayment["method"], string, boolean][] = [
+      [first, at(30, 20), "upi", `UPI · ${customer.replace("u_", "")}@${handle}`, true],
+      [topUp - first, at(14, 20), "card", "Visa •••• 0002", false],
+      [topUp - first, at(14, 21), "card", "Visa •••• 1111", true],
+    ];
+    for (const [amount, when, method, detail, ok] of topUps) {
+      const payId = gatewayId("pay");
+      gatewayPayments.push({
+        gateway_order_id: gatewayId("order"),
+        id: payId,
+        user_id: customer,
+        amount,
+        purpose: "wallet_topup",
+        method,
+        method_detail: detail,
+        status: ok ? "captured" : "failed",
+        failure_reason: ok ? null : "Card declined by issuing bank",
+        order_id: null,
+        created_at: when,
+        captured_at: ok ? when : null,
+        refunded_at: null,
+      });
+      if (ok) {
+        wallet.push({ id: uid("wt"), user_id: customer, amount, transaction_type: "deposit", status: "completed", description: `Wallet top-up · ${method === "upi" ? "UPI" : "Card"} (${payId})`, order_id: null, created_at: when });
+      }
+    }
     for (const o of mine) {
       wallet.push({ id: uid("wt"), user_id: customer, amount: o.total_amount, transaction_type: "withdrawal", status: "completed", description: "Order payment", order_id: o.id, created_at: o.created_at });
       if (o.status === "cancelled") {
@@ -464,6 +551,9 @@ export function buildSeed(now: Date = new Date()): DemoDb {
     archive,
     reservations,
     subscriptions,
+    subscriptionSkips,
+    slots,
+    gatewayPayments,
     riderLocations,
     notifications,
     nextFarmerCode: 1001 + FARMERS.length,
