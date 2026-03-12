@@ -16,7 +16,7 @@ import { round2 } from "@/lib/format";
 import { haversine, pointAlong, type LatLng } from "@/lib/geo";
 import { getRoute, optimizeStops } from "@/lib/routing";
 import { DEMO_ACCOUNTS, uid, type DbOrder } from "./db";
-import { autoAssignOrders } from "./mockApi";
+import { autoAssignOrders, isDispatchable, minutesUntilSlot } from "./mockApi";
 import { getStore } from "./store";
 
 const TICK_MS = 1000;
@@ -108,6 +108,7 @@ function tick() {
       (o) =>
         o.status === "pending" &&
         !o.delivery_person_id &&
+        isDispatchable(o) &&
         now - Math.max(startedAt, new Date(o.created_at).getTime()) > DISPATCH_AFTER_MS
     );
     // keep the demo rider's queue for the person driving the demo
@@ -126,6 +127,7 @@ function tick() {
           o.delivery_person_id === rider.id &&
           o.status === "pending" &&
           o.assigned_at &&
+          minutesUntilSlot(o, now) <= 30 && // scheduled stops leave shortly before their window
           now - Math.max(startedAt, new Date(o.assigned_at).getTime()) > BOT_START_AFTER_MS
         ) {
           o.status = "out_for_delivery";
