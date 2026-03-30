@@ -71,6 +71,8 @@ type OrderRow = {
   picked_up_at: string | null;
   source: string;
   subscription_id: string | null;
+  delivery_slot_id: string | null;
+  gateway_payment_id: string | null;
   created_at: string;
 }
 
@@ -159,6 +161,7 @@ type SubscriptionRow = {
   frequency: string;
   status: string;
   next_delivery: string | null;
+  preferred_slot_start: string | null;
   created_at: string;
 }
 
@@ -168,6 +171,29 @@ type DeliverySlotRow = {
   start_time: string;
   end_time: string;
   capacity: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+type GatewayPaymentRow = {
+  gateway_order_id: string;
+  payment_id: string | null;
+  user_id: string;
+  amount: number;
+  purpose: string;
+  method: string | null;
+  method_detail: string | null;
+  status: string;
+  failure_reason: string | null;
+  order_id: string | null;
+  created_at: string;
+  captured_at: string | null;
+  refunded_at: string | null;
+}
+
+type SubscriptionSkipRow = {
+  subscription_id: string;
+  skip_date: string;
   created_at: string;
 }
 
@@ -234,6 +260,8 @@ export type Database = {
       order_otps: TableDef<OrderOtpRow>;
       depots: TableDef<DepotRow>;
       rider_locations: TableDef<RiderLocationRow>;
+      gateway_payments: TableDef<GatewayPaymentRow>;
+      subscription_skips: TableDef<SubscriptionSkipRow>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -248,9 +276,32 @@ export type Database = {
           p_lat?: number | null;
           p_lng?: number | null;
           p_notes?: string | null;
+          p_slot_id?: string | null;
+          p_gateway_order_id?: string | null;
         };
         Returns: string;
       };
+      create_payment_order: { Args: { p_amount: number; p_purpose: string }; Returns: Json };
+      capture_test_payment: { Args: { p_gateway_order_id: string; p_method: string; p_detail: string }; Returns: Json };
+      fail_test_payment: {
+        Args: { p_gateway_order_id: string; p_method: string; p_detail: string; p_reason: string };
+        Returns: Json;
+      };
+      refund_unused_payment: { Args: { p_gateway_order_id: string }; Returns: boolean };
+      get_delivery_slots: {
+        Args: { p_from: string; p_days?: number };
+        Returns: {
+          id: string;
+          slot_date: string;
+          start_time: string;
+          end_time: string;
+          capacity: number;
+          is_active: boolean;
+          booked: number;
+          available: boolean;
+        }[];
+      };
+      set_subscription_skips: { Args: { p_subscription_id: string; p_dates: string[]; p_skip: boolean }; Returns: boolean };
       cancel_order: { Args: { p_order_id: string }; Returns: boolean };
       complete_delivery: { Args: { p_order_id: string; p_otp?: string | null }; Returns: boolean };
       claim_order: { Args: { p_order_id: string }; Returns: boolean };
@@ -350,7 +401,7 @@ export type Database = {
       user_role: "admin" | "farmer" | "customer" | "delivery";
       account_status: "pending" | "approved" | "rejected";
       order_status: "pending" | "out_for_delivery" | "completed" | "cancelled";
-      payment_method: "wallet" | "cash";
+      payment_method: "wallet" | "cash" | "online";
       txn_type: "deposit" | "withdrawal";
       txn_status: "pending" | "completed" | "failed";
       payment_status: "pending" | "approved" | "rejected";

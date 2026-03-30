@@ -25,17 +25,16 @@ async function call<T>(name: string, args?: Record<string, unknown>): Promise<T>
 
 export const getWalletBalance = () => call<number>('get_wallet_balance');
 
-export const rechargeWallet = (amount: number) =>
-  call<string>('recharge_wallet', { p_amount: amount });
-
 export const placeOrder = (params: {
   milkType: string;
   quantity: number;
-  paymentMethod: 'wallet' | 'cash';
+  paymentMethod: 'wallet' | 'cash' | 'online';
   address?: string | null;
   lat?: number | null;
   lng?: number | null;
   notes?: string | null;
+  slotId?: string | null;
+  gatewayOrderId?: string | null;
 }) =>
   call<string>('place_order', {
     p_milk_type: params.milkType,
@@ -45,7 +44,50 @@ export const placeOrder = (params: {
     p_lat: params.lat ?? null,
     p_lng: params.lng ?? null,
     p_notes: params.notes ?? null,
+    p_slot_id: params.slotId ?? null,
+    p_gateway_order_id: params.gatewayOrderId ?? null,
   });
+
+export const createPaymentOrder = (amount: number, purpose: 'wallet_topup' | 'order') =>
+  call<{ id: string; amount: number; currency: 'INR'; purpose: 'wallet_topup' | 'order'; status: 'created' }>(
+    'create_payment_order',
+    { p_amount: amount, p_purpose: purpose }
+  );
+
+export const captureTestPayment = (gatewayOrderId: string, method: string, detail: string) =>
+  call<{ id: string }>('capture_test_payment', {
+    p_gateway_order_id: gatewayOrderId,
+    p_method: method,
+    p_detail: detail,
+  });
+
+export const failTestPayment = (gatewayOrderId: string, method: string, detail: string, reason: string) =>
+  call<{ id: string }>('fail_test_payment', {
+    p_gateway_order_id: gatewayOrderId,
+    p_method: method,
+    p_detail: detail,
+    p_reason: reason,
+  });
+
+export const refundUnusedPayment = (gatewayOrderId: string) =>
+  call<boolean>('refund_unused_payment', { p_gateway_order_id: gatewayOrderId });
+
+export interface DeliverySlotRow {
+  id: string;
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+  capacity: number;
+  is_active: boolean;
+  booked: number;
+  available: boolean;
+}
+
+export const getDeliverySlots = (from: string, days: number) =>
+  call<DeliverySlotRow[]>('get_delivery_slots', { p_from: from, p_days: days });
+
+export const setSubscriptionSkips = (subscriptionId: string, dates: string[], skip: boolean) =>
+  call<boolean>('set_subscription_skips', { p_subscription_id: subscriptionId, p_dates: dates, p_skip: skip });
 
 export const cancelOrder = (orderId: string) =>
   call<boolean>('cancel_order', { p_order_id: orderId });
