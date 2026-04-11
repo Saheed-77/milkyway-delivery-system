@@ -1,5 +1,6 @@
 import * as rpc from "@/lib/rpc";
 import { addDays, fullName, round2, toLocalISODate } from "@/lib/format";
+import { slotStartDate } from "@/lib/schedule";
 import type { DataApi } from "../api";
 import type { AppNotification, Depot, Rider, RiderLocation, StockSummary, UserRole } from "../types";
 import {
@@ -98,7 +99,15 @@ export const delivery: DataApi["delivery"] = {
         .limit(50)
         .then(must),
     ]);
-    return { assigned: assigned.map(mapOrder), available: available.map(mapOrder) };
+    // scheduled orders become claimable 90 minutes before their window
+    const due = (o: ReturnType<typeof mapOrder>) =>
+      !o.delivery_slot || slotStartDate(o.delivery_slot.date, o.delivery_slot.start).getTime() - Date.now() <= 90 * 60_000;
+    const bySlot = (o: ReturnType<typeof mapOrder>) =>
+      o.delivery_slot ? slotStartDate(o.delivery_slot.date, o.delivery_slot.start).getTime() : 0;
+    return {
+      assigned: assigned.map(mapOrder).sort((a, b) => bySlot(a) - bySlot(b)),
+      available: available.map(mapOrder).filter(due),
+    };
   },
   async myCompleted(range) {
     const uid = await currentUserId();
