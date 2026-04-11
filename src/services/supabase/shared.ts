@@ -41,6 +41,8 @@ export const ORDER_SELECT = `
   assigned_at, picked_up_at, delivered_at, created_at, source,
   customer:profiles!customer_id ( first_name, last_name, phone ),
   rider:profiles!delivery_person_id ( first_name, last_name ),
+  delivery_slot:delivery_slots!delivery_slot_id ( id, slot_date, start_time, end_time ),
+  gateway:gateway_payments!gateway_payment_id ( payment_id, method_detail ),
   order_items ( product_id, quantity, unit_price, products ( name, milk_type ) )
 `;
 
@@ -65,6 +67,8 @@ export function mapOrder(row: any): Order {
     };
   });
   const otp = one<{ otp: string }>(row.order_otps);
+  const slot = one<{ id: string; slot_date: string; start_time: string; end_time: string }>(row.delivery_slot);
+  const gateway = one<{ payment_id: string; method_detail: string | null }>(row.gateway);
   return {
     id: row.id,
     customer_id: row.customer_id,
@@ -85,6 +89,11 @@ export function mapOrder(row: any): Order {
     delivered_at: row.delivered_at ?? null,
     created_at: row.created_at,
     items,
+    delivery_slot: slot
+      ? { id: slot.id, date: slot.slot_date, start: slot.start_time.slice(0, 5), end: slot.end_time.slice(0, 5) }
+      : null,
+    payment_ref: row.gateway_payment_id ?? null,
+    payment_method_detail: gateway?.method_detail ?? null,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     quantity: items.reduce((s: number, i: any) => s + i.quantity, 0),
     source: row.source ?? "order",

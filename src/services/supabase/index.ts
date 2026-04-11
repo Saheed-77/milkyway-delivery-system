@@ -2,6 +2,7 @@ import type { ChangeTopic, DataApi } from "../api";
 import { supabaseAuth } from "./auth";
 import { orders, products, subscriptions, wallet } from "./commerce";
 import { contributions, farmers, payments, pricing } from "./farm";
+import { gateway, slots } from "./payments";
 import { delivery, notifications, reports, stock } from "./operations";
 import { sb } from "./shared";
 
@@ -14,6 +15,8 @@ const TOPIC_TABLES: Partial<Record<ChangeTopic, string>> = {
   contributions: "milk_contributions",
   subscriptions: "subscriptions",
   rider_locations: "rider_locations",
+  gateway: "gateway_payments",
+  slots: "delivery_slots",
 };
 
 let channelSeq = 0;
@@ -23,6 +26,8 @@ export const supabaseApi: DataApi = {
   auth: supabaseAuth,
   products,
   wallet,
+  gateway,
+  slots,
   orders,
   subscriptions,
   farmers,
