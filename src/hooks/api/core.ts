@@ -26,10 +26,12 @@ export type Family =
   | "products"
   | "riders"
   | "reports"
-  | "notifications";
+  | "notifications"
+  | "gateway"
+  | "slots";
 
 const TOPIC_FAMILIES: Record<ChangeTopic, Family[]> = {
-  orders: ["orders", "tracking", "stops", "riders", "reports", "notifications", "stock"],
+  orders: ["orders", "tracking", "stops", "riders", "reports", "notifications", "stock", "slots", "gateway"],
   wallet: ["wallet"],
   stock: ["stock"],
   farmers: ["farmers", "notifications"],
@@ -38,6 +40,8 @@ const TOPIC_FAMILIES: Record<ChangeTopic, Family[]> = {
   subscriptions: ["subscriptions", "stock"],
   pricing: ["pricing", "products", "contributions"],
   rider_locations: ["riders", "tracking"],
+  gateway: ["gateway", "wallet"],
+  slots: ["slots"],
 };
 
 export function invalidateTopics(qc: QueryClient, topics: ChangeTopic[]) {

@@ -42,11 +42,22 @@ export const useSetPrices = () =>
 export const useWalletBalance = () => useQuery({ queryKey: ["wallet", "balance"], queryFn: api.wallet.balance });
 export const useWalletTransactions = (limit = 100) =>
   useQuery({ queryKey: ["wallet", "transactions", limit], queryFn: () => api.wallet.transactions(limit) });
-export const useRecharge = () =>
-  useApiMutation((amount: number) => api.wallet.recharge(amount), {
-    success: (_d, amount) => `₹${amount.toLocaleString("en-IN")} added to your wallet`,
-    invalidates: ["wallet"],
-  });
+/* -------------------------------------------------------------- gateway */
+
+export const useGatewayPayments = () => useQuery({ queryKey: ["gateway", "mine"], queryFn: api.gateway.mine });
+
+/* ---------------------------------------------------------------- slots */
+
+export const useDeliverySlots = (from: string, days: number) =>
+  useQuery({ queryKey: ["slots", from, days], queryFn: () => api.slots.list(from, days), refetchInterval: 60_000 });
+export const useUpdateSlot = () =>
+  useApiMutation(
+    ({ id, ...patch }: { id: string; capacity?: number; is_active?: boolean }) => api.slots.update(id, patch),
+    {
+      success: (_d, v) => (v.is_active === false ? "Slot closed" : v.is_active === true ? "Slot reopened" : "Capacity updated"),
+      invalidates: ["slots"],
+    }
+  );
 
 /* --------------------------------------------------------------- orders */
 
@@ -63,7 +74,7 @@ export const useOrderTracking = (orderId: string | undefined) =>
 export const usePlaceOrder = () =>
   useApiMutation((input: PlaceOrderInput) => api.orders.place(input), {
     success: "Order placed — we'll let you know when it's on the way",
-    invalidates: ["orders", "wallet", "stock"],
+    invalidates: ["orders", "wallet", "stock", "slots", "gateway"],
   });
 export const useCancelOrder = () =>
   useApiMutation((orderId: string) => api.orders.cancel(orderId), {
@@ -89,6 +100,17 @@ export const useSetSubscriptionStatus = () =>
     success: (_d, v) => (v.status === "active" ? "Subscription resumed" : v.status === "paused" ? "Subscription paused" : "Subscription cancelled"),
     invalidates: ["subscriptions"],
   });
+export const useUpdateSubscription = () =>
+  useApiMutation(
+    ({ id, preferred_slot_start }: { id: string; preferred_slot_start: string | null }) =>
+      api.subscriptions.update(id, { preferred_slot_start }),
+    { success: "Delivery window updated", invalidates: ["subscriptions"] }
+  );
+export const useSetSkips = () =>
+  useApiMutation(
+    ({ id, dates, skip }: { id: string; dates: string[]; skip: boolean; message?: string }) => api.subscriptions.setSkips(id, dates, skip),
+    { success: (_d, v) => v.message ?? null, invalidates: ["subscriptions"] }
+  );
 export const useGenerateSubscriptionOrders = () =>
   useApiMutation((date?: string) => api.subscriptions.generateOrders(date), {
     success: (n) => (n ? `${n} subscription order(s) created` : "No subscription deliveries due"),
