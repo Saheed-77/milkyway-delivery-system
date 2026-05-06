@@ -1,14 +1,19 @@
 import { useState } from "react";
-import { Loader2, ShieldCheck, Wallet } from "lucide-react";
+import { Building2, CreditCard, Loader2, ShieldCheck, Smartphone, Wallet } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
+import { GatewayPaymentList } from "@/components/payments/GatewayPaymentList";
+import { PaymentCancelledError, usePayment } from "@/components/payments/PaymentProvider";
 import { TransactionList } from "@/components/wallet/TransactionList";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRecharge, useWalletBalance } from "@/hooks/api/queries";
+import { errorMessage } from "@/hooks/api/core";
+import { useWalletBalance } from "@/hooks/api/queries";
 import { formatCurrency } from "@/lib/format";
 
 const QUICK = [200, 500, 1000, 2000];
@@ -16,10 +21,26 @@ const QUICK = [200, 500, 1000, 2000];
 export default function WalletPage() {
   const { isDemo } = useAuth();
   const balance = useWalletBalance();
-  const recharge = useRecharge();
+  const pay = usePayment();
+  const [paying, setPaying] = useState(false);
   const [amount, setAmount] = useState("");
   const value = Number(amount);
-  const valid = value > 0 && value <= 100000;
+  const valid = value >= 1 && value <= 100000;
+
+  // Top-ups go through the payment gateway; the server credits the wallet on capture.
+  const addMoney = async () => {
+    if (!valid) return;
+    setPaying(true);
+    try {
+      const payment = await pay({ amount: value, purpose: "wallet_topup", description: "Add money to MilkyWay wallet" });
+      toast.success(`${formatCurrency(payment.amount)} added via ${payment.method_detail}`);
+      setAmount("");
+    } catch (e) {
+      if (!(e instanceof PaymentCancelledError)) toast.error(errorMessage(e));
+    } finally {
+      setPaying(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -48,7 +69,8 @@ export default function WalletPage() {
             <CardHeader>
               <CardTitle>Add money</CardTitle>
               <CardDescription>
-                {isDemo ? "Demo top-up — no real payment is taken." : "Top up instantly. Limit ₹1,00,000 per recharge."}
+                Pay by UPI, card, netbanking or wallet.{" "}
+                {isDemo ? "Test mode — no real money moves." : "Limit ₹1,00,000 per top-up."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -56,7 +78,7 @@ export default function WalletPage() {
                 className="space-y-4"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (valid) recharge.mutate(value, { onSuccess: () => setAmount("") });
+                  void addMoney();
                 }}
               >
                 <div className="grid grid-cols-4 gap-2">
@@ -83,12 +105,18 @@ export default function WalletPage() {
                     />
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={!valid || recharge.isPending}>
-                  {recharge.isPending && <Loader2 className="animate-spin" />}
+                <Button type="submit" className="w-full" disabled={!valid || paying}>
+                  {paying && <Loader2 className="animate-spin" />}
                   Add {valid ? formatCurrency(value) : "money"}
                 </Button>
+                <div className="flex items-center justify-center gap-3 text-muted-foreground" aria-label="Accepted: UPI, cards, netbanking, wallets">
+                  <Smartphone className="h-4 w-4" />
+                  <CreditCard className="h-4 w-4" />
+                  <Building2 className="h-4 w-4" />
+                  <Wallet className="h-4 w-4" />
+                </div>
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <ShieldCheck className="h-3.5 w-3.5" /> Balances are computed on the server; the app can't edit them.
+                  <ShieldCheck className="h-3.5 w-3.5" /> The wallet is credited by the server only after the payment is captured.
                 </p>
               </form>
             </CardContent>
@@ -96,12 +124,23 @@ export default function WalletPage() {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TransactionList />
-          </CardContent>
+          <Tabs defaultValue="wallet">
+            <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
+              <CardTitle>History</CardTitle>
+              <TabsList>
+                <TabsTrigger value="wallet">Wallet</TabsTrigger>
+                <TabsTrigger value="online">Online payments</TabsTrigger>
+              </TabsList>
+            </CardHeader>
+            <CardContent>
+              <TabsContent value="wallet" className="mt-0">
+                <TransactionList />
+              </TabsContent>
+              <TabsContent value="online" className="mt-0">
+                <GatewayPaymentList />
+              </TabsContent>
+            </CardContent>
+          </Tabs>
         </Card>
       </div>
     </div>
