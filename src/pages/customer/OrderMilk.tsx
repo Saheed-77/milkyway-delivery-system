@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Banknote, Bike, Loader2, Minus, Plus, Wallet } from "lucide-react";
+import { ArrowRight, Banknote, Bike, CalendarClock, Loader2, Minus, Plus, Smartphone, Wallet } from "lucide-react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { MilkDot } from "@/components/common/Brand";
 import { ErrorState } from "@/components/common/EmptyState";
 import { CardSkeleton } from "@/components/common/Skeletons";
 import { LocationPickerField, type PickedLocation } from "@/components/maps/LocationPickerField";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
+import { SlotPicker } from "@/components/orders/SlotPicker";
+import { PaymentCancelledError, usePayment } from "@/components/payments/PaymentProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,10 +17,12 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
+import { errorMessage } from "@/hooks/api/core";
 import { useMyOrders, usePlaceOrder, useProducts, useWalletBalance } from "@/hooks/api/queries";
 import { formatCurrency, MILK_LABELS, round2 } from "@/lib/format";
+import { slotLabel } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
-import { MILK_TYPES, type MilkType, type PaymentMethod, type Product } from "@/services";
+import { MILK_TYPES, type DeliverySlot, type MilkType, type PaymentMethod, type Product } from "@/services";
 
 const BLURB: Record<MilkType, string> = {
   cow: "Everyday fresh milk, collected this morning.",
@@ -41,6 +46,9 @@ export default function OrderMilk() {
   const [milkType, setMilkType] = useState<MilkType>("cow");
   const [quantity, setQuantity] = useState(1);
   const [method, setMethod] = useState<PaymentMethod>("wallet");
+  const [slot, setSlot] = useState<DeliverySlot | null>(null);
+  const [paying, setPaying] = useState(false);
+  const pay = usePayment();
   const [notes, setNotes] = useState("");
   const [location, setLocation] = useState<PickedLocation | null>(
     profile?.latitude != null && profile.longitude != null
@@ -63,7 +71,25 @@ export default function OrderMilk() {
   const shortBy = method === "wallet" && balance.data !== undefined ? round2(total - balance.data) : 0;
   const active = orders.data?.find((o) => o.status === "pending" || o.status === "out_for_delivery");
 
-  const submit = () => {
+  const submit = async () => {
+    let gatewayOrderId: string | undefined;
+    if (method === "online") {
+      // take the payment first; the server only accepts a captured payment of the exact total
+      setPaying(true);
+      try {
+        const payment = await pay({
+          amount: total,
+          purpose: "order",
+          description: `${quantity} L ${MILK_LABELS[milkType].toLowerCase()} · ${slotLabel(slot)}`,
+        });
+        gatewayOrderId = payment.gateway_order_id;
+      } catch (e) {
+        if (!(e instanceof PaymentCancelledError)) toast.error(errorMessage(e));
+        return;
+      } finally {
+        setPaying(false);
+      }
+    }
     placeOrder.mutate(
       {
         milkType,
@@ -73,6 +99,8 @@ export default function OrderMilk() {
         lat: location?.lat,
         lng: location?.lng,
         notes,
+        slotId: slot?.id ?? null,
+        gatewayOrderId,
       },
       { onSuccess: (id) => navigate(`/dashboard/customer/track/${id}`) }
     );
@@ -213,9 +241,18 @@ export default function OrderMilk() {
             </Card>
           </section>
 
+          <section aria-labelledby="when" className="space-y-3">
+            <h2 id="when" className="text-lg font-semibold">
+              3. When?
+            </h2>
+            <Card className="p-4">
+              <SlotPicker value={slot?.id ?? null} onChange={setSlot} />
+            </Card>
+          </section>
+
           <section aria-labelledby="where" className="space-y-3">
             <h2 id="where" className="text-lg font-semibold">
-              3. Where should we deliver?
+              4. Where should we deliver?
             </h2>
             <Card className="space-y-4 p-4">
               <LocationPickerField value={location} onChange={setLocation} />
@@ -250,6 +287,12 @@ export default function OrderMilk() {
                   <span className="text-muted-foreground">Delivery</span>
                   <span className="font-medium text-success">Free</span>
                 </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <CalendarClock className="h-3.5 w-3.5" /> Arrives
+                  </span>
+                  <span className="text-right font-medium">{slotLabel(slot)}</span>
+                </div>
                 <div className="flex justify-between border-t pt-2 text-base font-bold">
                   <span>Total</span>
                   <span className="tabular-nums">{formatCurrency(total)}</span>
@@ -260,6 +303,7 @@ export default function OrderMilk() {
                 {(
                   [
                     ["wallet", Wallet, "Wallet", balance.data !== undefined ? `Balance ${formatCurrency(balance.data)}` : "Loading…"],
+                    ["online", Smartphone, "Pay online", "UPI, cards, netbanking & wallets"],
                     ["cash", Banknote, "Cash on delivery", "Pay the rider at your door"],
                   ] as const
                 ).map(([value, Icon, label, hint]) => (
@@ -287,13 +331,18 @@ export default function OrderMilk() {
                   <Link to="/dashboard/customer/wallet" className="font-semibold text-primary underline-offset-2 hover:underline">
                     Recharge wallet
                   </Link>{" "}
-                  or choose cash.
+                  or pay online.
                 </div>
               )}
 
-              <Button size="lg" className="w-full" onClick={submit} disabled={!selected || placeOrder.isPending || shortBy > 0}>
-                {placeOrder.isPending && <Loader2 className="animate-spin" />}
-                Place order · {formatCurrency(total)}
+              <Button
+                size="lg"
+                className="w-full"
+                onClick={() => void submit()}
+                disabled={!selected || placeOrder.isPending || paying || shortBy > 0}
+              >
+                {(placeOrder.isPending || paying) && <Loader2 className="animate-spin" />}
+                {method === "online" ? "Pay" : "Place order"} · {formatCurrency(total)}
               </Button>
               {!location && (
                 <p className="text-center text-xs text-muted-foreground">
