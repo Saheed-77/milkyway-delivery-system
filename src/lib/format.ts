@@ -136,6 +136,13 @@ export const initials = (name: string) =>
 
 export const capitalize = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 
+/** "Wallet", "Cash on delivery", or "Paid online · UPI · priya@okhdfc". */
+export function paymentLabel(o: { payment_method: string; payment_method_detail?: string | null }): string {
+  if (o.payment_method === "wallet") return "Wallet";
+  if (o.payment_method === "cash") return "Cash on delivery";
+  return o.payment_method_detail ? `Paid online · ${o.payment_method_detail}` : "Paid online";
+}
+
 export const MILK_LABELS: Record<string, string> = {
   cow: "Cow milk",
   buffalo: "Buffalo milk",

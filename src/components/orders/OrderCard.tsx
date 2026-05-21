@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import { MapPin, Wallet, Banknote } from "lucide-react";
+import { Banknote, CalendarClock, MapPin, Smartphone, Wallet } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { MilkDot } from "@/components/common/Brand";
 import { orderDisplayStatus, StatusBadge } from "@/components/common/StatusBadge";
-import { formatCurrency, formatDateTime, formatLiters } from "@/lib/format";
+import { formatCurrency, formatDateTime, formatLiters, paymentLabel } from "@/lib/format";
+import { slotLabel } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/services";
 
@@ -33,9 +34,15 @@ export function OrderCard({ order, actions, footer, showCustomer, className }: O
         </div>
         <div className="text-right">
           <p className="text-lg font-bold tabular-nums">{formatCurrency(order.total_amount)}</p>
-          <p className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
-            {order.payment_method === "wallet" ? <Wallet className="h-3 w-3" /> : <Banknote className="h-3 w-3" />}
-            {order.payment_method === "wallet" ? "Wallet" : "Cash on delivery"}
+          <p className="flex max-w-[180px] items-center justify-end gap-1 text-xs text-muted-foreground">
+            {order.payment_method === "wallet" ? (
+              <Wallet className="h-3 w-3 shrink-0" />
+            ) : order.payment_method === "online" ? (
+              <Smartphone className="h-3 w-3 shrink-0" />
+            ) : (
+              <Banknote className="h-3 w-3 shrink-0" />
+            )}
+            <span className="truncate">{paymentLabel(order)}</span>
           </p>
         </div>
       </div>
@@ -54,8 +61,12 @@ export function OrderCard({ order, actions, footer, showCustomer, className }: O
         ))}
       </ul>
 
+      <p className="mt-3 flex items-center gap-1.5 text-xs font-medium">
+        <CalendarClock className="h-3.5 w-3.5 shrink-0 text-primary" />
+        {slotLabel(order.delivery_slot)}
+      </p>
       {order.delivery_address && (
-        <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+        <p className="mt-1.5 flex items-start gap-1.5 text-xs text-muted-foreground">
           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span className="line-clamp-2">{order.delivery_address}</span>
         </p>
