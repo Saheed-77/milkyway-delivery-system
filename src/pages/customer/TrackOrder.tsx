@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Marker, Popup } from "react-leaflet";
-import { ArrowLeft, Bike, Clock, KeyRound, MapPin, Navigation, PackageCheck, Phone, Route as RouteIcon } from "lucide-react";
+import { ArrowLeft, Bike, CalendarClock, Clock, KeyRound, MapPin, Navigation, PackageCheck, Phone, Route as RouteIcon } from "lucide-react";
 import { ErrorState } from "@/components/common/EmptyState";
 import { InitialsAvatar } from "@/components/common/Brand";
 import { CardSkeleton } from "@/components/common/Skeletons";
@@ -14,7 +14,8 @@ import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useOrderTracking } from "@/hooks/api/queries";
-import { formatCurrency, formatDistance, formatDuration, formatLiters, formatRelative, formatTime } from "@/lib/format";
+import { formatCurrency, formatDistance, formatDuration, formatLiters, formatRelative, formatTime, paymentLabel } from "@/lib/format";
+import { slotLabel } from "@/lib/schedule";
 import { estimateSeconds, haversine, pathLength, type LatLng } from "@/lib/geo";
 
 /** Remaining distance along a route from the vertex nearest to `pos`. */
@@ -203,9 +204,16 @@ export default function TrackOrder() {
                 </div>
               ))}
               <div className="flex justify-between border-t pt-2 font-semibold">
-                <span>Total ({order.payment_method === "wallet" ? "paid from wallet" : "cash on delivery"})</span>
+                <span>Total</span>
                 <span className="tabular-nums">{formatCurrency(order.total_amount)}</span>
               </div>
+              <p className="text-xs text-muted-foreground">
+                {paymentLabel(order)}
+                {order.payment_ref && <span className="font-mono"> · {order.payment_ref}</span>}
+              </p>
+              <p className="flex gap-1.5 text-xs font-medium">
+                <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" /> {slotLabel(order.delivery_slot)}
+              </p>
               {order.delivery_address && (
                 <p className="flex gap-1.5 pt-1 text-xs text-muted-foreground">
                   <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {order.delivery_address}

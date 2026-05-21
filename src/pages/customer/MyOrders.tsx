@@ -98,7 +98,9 @@ export default function MyOrders() {
                         description={
                           order.payment_method === "wallet"
                             ? `${formatCurrency(order.total_amount)} will be refunded to your wallet immediately.`
-                            : "The rider will be notified that this stop is cancelled."
+                            : order.payment_method === "online"
+                              ? `${formatCurrency(order.total_amount)} will be refunded to ${order.payment_method_detail ?? "your original payment method"}.`
+                              : "The rider will be notified that this stop is cancelled."
                         }
                         confirmLabel="Cancel order"
                         cancelLabel="Keep order"
