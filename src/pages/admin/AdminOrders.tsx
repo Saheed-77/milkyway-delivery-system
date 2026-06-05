@@ -17,6 +17,7 @@ import { useAllOrders, useAssignOrder, useCancelOrder, useForceComplete, useRide
 import { sum } from "@/lib/analytics";
 import { addDays, formatCurrency, formatCurrencyPdf, formatDateTime, formatLiters, toLocalISODate } from "@/lib/format";
 import { exportTablePdf } from "@/lib/pdf";
+import { slotLabel } from "@/lib/schedule";
 import type { DateRange, Order, OrderStatus } from "@/services";
 
 const TABS: { value: OrderStatus | "all"; label: string }[] = [
@@ -78,6 +79,7 @@ export default function AdminOrders() {
         { header: "Milk", value: (o) => `${o.quantity} L` },
         { header: "Amount", value: (o) => formatCurrencyPdf(o.total_amount), align: "right" },
         { header: "Payment", value: (o) => o.payment_method },
+        { header: "Delivery", value: (o) => slotLabel(o.delivery_slot) },
         { header: "Status", value: (o) => o.status.replace(/_/g, " ") },
         { header: "Rider", value: (o) => o.rider_name ?? "-" },
       ],
@@ -161,10 +163,11 @@ export default function AdminOrders() {
                       <TableCell className="text-sm">
                         {o.items.map((i) => `${formatLiters(i.quantity)} ${i.milk_type}`).join(", ")}
                         {o.source === "subscription" && <div className="text-[11px] text-info">subscription</div>}
+                        <div className="text-[11px] font-medium text-muted-foreground">{slotLabel(o.delivery_slot)}</div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatCurrency(o.total_amount)}
-                        <div className="text-[11px] text-muted-foreground">{o.payment_method === "cash" ? "cash" : "wallet"}</div>
+                        <div className="text-[11px] text-muted-foreground">{o.payment_method}</div>
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={orderDisplayStatus(o)} />

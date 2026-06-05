@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAllOrders, useAssignOrder, useAutoAssign, useDepot, useGenerateSubscriptionOrders, useRiders } from "@/hooks/api/queries";
 import { formatDistance, formatLiters, formatRelative, initials } from "@/lib/format";
 import { haversine, type LatLng } from "@/lib/geo";
+import { slotLabel, slotStartDate } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 import { api, type Order, type Rider } from "@/services";
 import { isAutoDispatch, setAutoDispatch } from "@/services/mock/simulator";
@@ -67,7 +68,9 @@ export default function LiveOps() {
 
   const riderList = riders.data ?? [];
   const colorOf = (id: string | null) => RIDER_COLORS[Math.max(0, riderList.findIndex((r) => r.id === id)) % RIDER_COLORS.length];
-  const active = [...(pending.data ?? []), ...(onRoad.data ?? [])];
+  // queue order: earliest delivery window first (express = now)
+  const windowOf = (o: Order) => (o.delivery_slot ? slotStartDate(o.delivery_slot.date, o.delivery_slot.start).getTime() : 0);
+  const active = [...(pending.data ?? []), ...(onRoad.data ?? [])].sort((a, b) => windowOf(a) - windowOf(b));
   const unassigned = active.filter((o) => !o.delivery_person_id);
   const fit = [...active.filter(hasPin).map(pos), ...riderList.filter((r) => r.location).map((r) => r.location!), ...(depot.data ? [depot.data] : [])];
   const selectedOrder = active.find((o) => o.id === selected);
@@ -221,7 +224,7 @@ export default function LiveOps() {
                       </div>
                       <div className="mt-2 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
                         <span className="text-xs text-muted-foreground">
-                          {formatLiters(o.quantity)} · {formatRelative(o.created_at)}
+                          {formatLiters(o.quantity)} · {o.delivery_slot ? slotLabel(o.delivery_slot) : `express · ${formatRelative(o.created_at)}`}
                         </span>
                         {o.status === "pending" ? (
                           <AssignSelect order={o} riders={riderList} origin={depot.data} />
