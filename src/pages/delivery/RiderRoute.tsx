@@ -35,6 +35,7 @@ import { useRiderGps } from "@/hooks/useRiderGps";
 import { formatCurrency, formatDistance, formatDuration, formatLiters } from "@/lib/format";
 import { haversine, type LatLng } from "@/lib/geo";
 import { navigationUrl, optimizeStops } from "@/lib/routing";
+import { slotLabel, slotStartDate } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 import { api, type Order } from "@/services";
 
@@ -65,9 +66,18 @@ export default function RiderRoute() {
   // stable; memoise only the id order so cards always show fresh status.
   const stopKey = assigned.map((o) => o.id).sort().join(",");
   const orderIds = useMemo(() => {
-    const pinned = assigned.filter(hasPin).map((o) => ({ ...pos(o), id: o.id }));
-    const from = current ?? depot.data;
-    const sorted = from ? optimizeStops(from, pinned).map((x) => x.id) : pinned.map((x) => x.id);
+    // Earlier delivery windows first (express counts as "now"); optimise the
+    // route within each window, continuing from the previous window's last stop.
+    const windowOf = (o: Order) => (o.delivery_slot ? slotStartDate(o.delivery_slot.date, o.delivery_slot.start).getTime() : 0);
+    const windows = [...new Set(assigned.map(windowOf))].sort((a, b) => a - b);
+    let from: LatLng | null | undefined = current ?? depot.data;
+    const sorted: string[] = [];
+    for (const w of windows) {
+      const pinned = assigned.filter((o) => hasPin(o) && windowOf(o) === w).map((o) => ({ ...pos(o), id: o.id }));
+      const route = from ? optimizeStops(from, pinned) : pinned;
+      sorted.push(...route.map((x) => x.id));
+      if (route.length) from = route[route.length - 1];
+    }
     return [...sorted, ...assigned.filter((o) => !hasPin(o)).map((o) => o.id)];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopKey, depot.data?.id]);
@@ -178,8 +188,9 @@ export default function RiderRoute() {
           {next ? (
             <Card className={cn("border-primary/40", arrived && "border-success ring-2 ring-success/30")}>
               <CardContent className="space-y-3 p-5">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <Badge variant={arrived ? "success" : "brand"}>{arrived ? "You've arrived" : "Next stop"}</Badge>
+                  <Badge variant="muted">{slotLabel(next.delivery_slot)}</Badge>
                   <StatusBadge status={orderDisplayStatus(next)} />
                 </div>
                 <div>
