@@ -120,7 +120,8 @@ export const subscriptions: DataApi["subscriptions"] = {
         quantity: Number(r.quantity),
         frequency: r.frequency,
         status: r.status,
-        next_delivery: nextDeliveryDate(r, skips) ?? null,
+        // today's delivery is billed at dawn, so "next" means from tomorrow
+        next_delivery: nextDeliveryDate(r, skips, toLocalISODate(addDays(new Date(), 1))) ?? null,
         created_at: r.created_at,
         preferred_slot_start: r.preferred_slot_start ? String(r.preferred_slot_start).slice(0, 5) : null,
         skip_dates: skips.filter((d) => d >= today),

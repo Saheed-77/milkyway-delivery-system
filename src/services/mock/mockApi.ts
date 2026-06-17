@@ -769,7 +769,8 @@ export const mockApi: DataApi = {
             quantity: s.quantity,
             frequency: s.frequency,
             status: s.status,
-            next_delivery: nextDeliveryDate(s, skipsOf(s.id)),
+            // today's delivery is billed at dawn, so "next" means from tomorrow
+            next_delivery: nextDeliveryDate(s, skipsOf(s.id), addDaysISO(today(), 1)),
             created_at: s.created_at,
             preferred_slot_start: s.preferred_slot_start ?? null,
             skip_dates: skipsOf(s.id).filter((d) => d >= today()),
