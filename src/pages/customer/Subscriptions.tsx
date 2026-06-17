@@ -1,18 +1,21 @@
 import { useState } from "react";
-import { CalendarClock, Loader2, Pause, Play, Plus, Repeat, X } from "lucide-react";
+import { CalendarClock, Loader2, Palmtree, Pause, Play, Plus, Repeat, Settings2, X } from "lucide-react";
 import { MilkDot } from "@/components/common/Brand";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState, ErrorState } from "@/components/common/EmptyState";
 import { PageHeader } from "@/components/common/PageHeader";
 import { ListSkeleton } from "@/components/common/Skeletons";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { SubscriptionManager } from "@/components/subscriptions/SubscriptionManager";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateSubscription, useMySubscriptions, useProducts, useSetSubscriptionStatus } from "@/hooks/api/queries";
-import { formatCurrency, formatDate, formatLiters, round2 } from "@/lib/format";
+import { formatCurrency, formatDate, formatLiters, formatShortDate, round2 } from "@/lib/format";
+import { DEFAULT_WINDOWS, activeVacation, windowLabel } from "@/lib/schedule";
 import type { Frequency, Subscription } from "@/services";
 
 const FREQ_LABEL: Record<Frequency, string> = { daily: "Every day", weekly: "Once a week", monthly: "Once a month" };
@@ -24,6 +27,7 @@ function NewSubscription({ onDone }: { onDone: () => void }) {
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [frequency, setFrequency] = useState<Frequency>("daily");
+  const [slotStart, setSlotStart] = useState("06:00");
 
   const product = products.data?.find((p) => p.id === productId);
   const qty = Number(quantity);
@@ -38,11 +42,11 @@ function NewSubscription({ onDone }: { onDone: () => void }) {
       </CardHeader>
       <CardContent>
         <form
-          className="grid grid-cols-1 gap-4 sm:grid-cols-3"
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
           onSubmit={(e) => {
             e.preventDefault();
             if (!valid) return;
-            create.mutate({ productId, quantity: qty, frequency }, { onSuccess: onDone });
+            create.mutate({ productId, quantity: qty, frequency, preferredSlotStart: slotStart }, { onSuccess: onDone });
           }}
         >
           <div className="space-y-1.5">
@@ -90,7 +94,22 @@ function NewSubscription({ onDone }: { onDone: () => void }) {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-3">
+          <div className="space-y-1.5">
+            <Label>Delivery window</Label>
+            <Select value={slotStart} onValueChange={setSlotStart}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DEFAULT_WINDOWS.map((w) => (
+                  <SelectItem key={w.start} value={w.start}>
+                    {windowLabel(w.start, w.end)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2 lg:col-span-4">
             <p className="text-sm text-muted-foreground">
               {product && valid ? (
                 <>
@@ -119,6 +138,8 @@ function NewSubscription({ onDone }: { onDone: () => void }) {
 function SubscriptionRow({ sub }: { sub: Subscription }) {
   const setStatus = useSetSubscriptionStatus();
   const busy = setStatus.isPending;
+  const vacation = activeVacation(sub.skip_dates);
+  const pref = DEFAULT_WINDOWS.find((w) => w.start === sub.preferred_slot_start);
   return (
     <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
       <div className="flex flex-1 items-center gap-3">
@@ -131,7 +152,18 @@ function SubscriptionRow({ sub }: { sub: Subscription }) {
           </p>
           <p className="text-sm text-muted-foreground">
             {formatLiters(sub.quantity)} · {FREQ_LABEL[sub.frequency].toLowerCase()}
+            {pref && ` · ${windowLabel(pref.start, pref.end)}`}
           </p>
+          {vacation && sub.status === "active" && (
+            <Badge variant="warning" className="mt-1">
+              <Palmtree className="h-3 w-3" /> On vacation until {formatShortDate(vacation.to)}
+            </Badge>
+          )}
+          {!vacation && sub.skip_dates.length > 0 && sub.status === "active" && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {sub.skip_dates.length} upcoming skip{sub.skip_dates.length > 1 ? "s" : ""}
+            </p>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -143,7 +175,15 @@ function SubscriptionRow({ sub }: { sub: Subscription }) {
         <StatusBadge status={sub.status} />
       </div>
       {sub.status !== "cancelled" && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <SubscriptionManager
+            sub={sub}
+            trigger={
+              <Button size="sm" variant="soft">
+                <Settings2 /> Manage
+              </Button>
+            }
+          />
           {sub.status === "active" ? (
             <Button size="sm" variant="outline" disabled={busy} onClick={() => setStatus.mutate({ id: sub.id, status: "paused" })}>
               <Pause /> Pause
