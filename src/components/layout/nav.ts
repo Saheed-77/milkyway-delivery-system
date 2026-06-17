@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CalendarClock,
   CheckCircle2,
   ClipboardList,
   IndianRupee,
@@ -34,6 +35,7 @@ export const NAV: Record<UserRole, NavItem[]> = {
     { path: "", label: "Overview", icon: LayoutDashboard, group: "Operations" },
     { path: "live", label: "Live Ops", icon: Map, group: "Operations" },
     { path: "orders", label: "Orders", icon: ShoppingBasket, group: "Operations" },
+    { path: "slots", label: "Delivery slots", icon: CalendarClock, group: "Operations" },
     { path: "collections", label: "Collections", icon: Milk, group: "Supply" },
     { path: "farmers", label: "Farmers", icon: Users, group: "Supply" },
     { path: "payments", label: "Farmer payments", icon: IndianRupee, group: "Supply" },

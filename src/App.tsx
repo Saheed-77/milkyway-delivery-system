@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FullPageLoader, ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppShell } from "@/components/layout/AppShell";
+import { PaymentProvider } from "@/components/payments/PaymentProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { IS_DEMO } from "@/config/env";
 import type { UserRole } from "@/services";
@@ -24,6 +25,7 @@ const AdminPayments = lazy(() => import("./pages/admin/AdminPayments"));
 const AdminInventory = lazy(() => import("./pages/admin/AdminInventory"));
 const AdminPricing = lazy(() => import("./pages/admin/AdminPricing"));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
+const AdminSlots = lazy(() => import("./pages/admin/AdminSlots"));
 
 const FarmerOverview = lazy(() => import("./pages/farmer/FarmerOverview"));
 const FarmerContributions = lazy(() => import("./pages/farmer/FarmerContributions"));
@@ -77,60 +79,63 @@ const App = () => (
       <Toaster closeButton position="top-center" />
       <BrowserRouter>
         <AuthProvider>
-          <DemoSimulator />
-          <Suspense fallback={<FullPageLoader />}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Navigate to="/auth/customer" replace />} />
-              <Route path="/auth/:userType" element={<Auth />} />
+          <PaymentProvider>
+            <DemoSimulator />
+            <Suspense fallback={<FullPageLoader />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Navigate to="/auth/customer" replace />} />
+                <Route path="/auth/:userType" element={<Auth />} />
 
-              <Route path="/dashboard/admin" element={shell("admin")}>
-                <Route index element={<AdminOverview />} />
-                <Route path="live" element={<LiveOps />} />
-                <Route path="orders" element={<AdminOrders />} />
-                <Route path="collections" element={<AdminCollections />} />
-                <Route path="farmers" element={<AdminFarmers />} />
-                <Route path="payments" element={<AdminPayments />} />
-                <Route path="inventory" element={<AdminInventory />} />
-                <Route path="pricing" element={<AdminPricing />} />
-                <Route path="reports" element={<AdminReports />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/dashboard/admin" replace />} />
-              </Route>
+                <Route path="/dashboard/admin" element={shell("admin")}>
+                  <Route index element={<AdminOverview />} />
+                  <Route path="live" element={<LiveOps />} />
+                  <Route path="orders" element={<AdminOrders />} />
+                  <Route path="collections" element={<AdminCollections />} />
+                  <Route path="farmers" element={<AdminFarmers />} />
+                  <Route path="payments" element={<AdminPayments />} />
+                  <Route path="inventory" element={<AdminInventory />} />
+                  <Route path="pricing" element={<AdminPricing />} />
+                  <Route path="reports" element={<AdminReports />} />
+                  <Route path="slots" element={<AdminSlots />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="*" element={<Navigate to="/dashboard/admin" replace />} />
+                </Route>
 
-              <Route path="/dashboard/farmer" element={shell("farmer")}>
-                <Route index element={<FarmerOverview />} />
-                <Route path="contributions" element={<FarmerContributions />} />
-                <Route path="payments" element={<FarmerPayments />} />
-                <Route path="wallet" element={<FarmerWallet />} />
-                <Route path="reports" element={<FarmerReports />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/dashboard/farmer" replace />} />
-              </Route>
+                <Route path="/dashboard/farmer" element={shell("farmer")}>
+                  <Route index element={<FarmerOverview />} />
+                  <Route path="contributions" element={<FarmerContributions />} />
+                  <Route path="payments" element={<FarmerPayments />} />
+                  <Route path="wallet" element={<FarmerWallet />} />
+                  <Route path="reports" element={<FarmerReports />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="*" element={<Navigate to="/dashboard/farmer" replace />} />
+                </Route>
 
-              <Route path="/dashboard/customer" element={shell("customer")}>
-                <Route index element={<OrderMilk />} />
-                <Route path="orders" element={<MyOrders />} />
-                <Route path="track/:orderId" element={<TrackOrder />} />
-                <Route path="subscriptions" element={<Subscriptions />} />
-                <Route path="wallet" element={<WalletPage />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/dashboard/customer" replace />} />
-              </Route>
+                <Route path="/dashboard/customer" element={shell("customer")}>
+                  <Route index element={<OrderMilk />} />
+                  <Route path="orders" element={<MyOrders />} />
+                  <Route path="track/:orderId" element={<TrackOrder />} />
+                  <Route path="subscriptions" element={<Subscriptions />} />
+                  <Route path="wallet" element={<WalletPage />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="*" element={<Navigate to="/dashboard/customer" replace />} />
+                </Route>
 
-              <Route path="/dashboard/delivery" element={shell("delivery")}>
-                <Route index element={<RiderRoute />} />
-                <Route path="schedule" element={<Navigate to="/dashboard/delivery" replace />} />
-                <Route path="pending" element={<Stops />} />
-                <Route path="completed" element={<Completed />} />
-                <Route path="collections" element={<Collections />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/dashboard/delivery" replace />} />
-              </Route>
+                <Route path="/dashboard/delivery" element={shell("delivery")}>
+                  <Route index element={<RiderRoute />} />
+                  <Route path="schedule" element={<Navigate to="/dashboard/delivery" replace />} />
+                  <Route path="pending" element={<Stops />} />
+                  <Route path="completed" element={<Completed />} />
+                  <Route path="collections" element={<Collections />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="*" element={<Navigate to="/dashboard/delivery" replace />} />
+                </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </PaymentProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
