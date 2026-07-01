@@ -3,6 +3,7 @@ import { dailyBuckets, weekStart, windowSum } from "./analytics";
 import { addDays, formatLiters, parseLocalDate, percentChange, round2, toLocalISODate } from "./format";
 import { haversine, pathLength, pointAlong } from "./geo";
 import { estimateRoute, optimizeStops } from "./routing";
+import { activeVacation, isDueOn, isSlotClosed, nextDeliveryDate, windowLabel } from "./schedule";
 
 describe("format", () => {
   it("uses local calendar dates, not UTC", () => {
@@ -79,5 +80,35 @@ describe("geo & routing", () => {
     expect(r.legs).toHaveLength(2);
     expect(r.distance).toBeGreaterThan(0);
     expect(r.duration).toBeGreaterThan(0);
+  });
+});
+
+describe("schedule", () => {
+  const sub = (frequency: "daily" | "weekly" | "monthly", created: string) => ({
+    frequency,
+    created_at: new Date(`${created}T08:00:00`).toISOString(),
+    status: "active" as const,
+  });
+
+  it("knows which days a subscription delivers", () => {
+    expect(isDueOn(sub("weekly", "2026-05-04"), "2026-05-11")).toBe(true); // same weekday
+    expect(isDueOn(sub("weekly", "2026-05-04"), "2026-05-12")).toBe(false);
+    expect(isDueOn(sub("monthly", "2026-01-31"), "2026-02-28")).toBe(true); // clamped to month end
+    expect(isDueOn(sub("daily", "2026-05-04"), "2026-05-03")).toBe(false); // before it started
+  });
+
+  it("skips days and finds the next delivery", () => {
+    const s = sub("daily", "2026-05-01");
+    expect(nextDeliveryDate(s, ["2026-05-10", "2026-05-11"], "2026-05-10")).toBe("2026-05-12");
+    expect(activeVacation(["2026-05-10", "2026-05-11", "2026-05-12"], "2026-05-09")).toEqual({ from: "2026-05-10", to: "2026-05-12" });
+    expect(activeVacation(["2026-05-10"], "2026-05-09")).toBeNull(); // one day is a skip, not a vacation
+  });
+
+  it("closes slots 30 minutes before they start and labels windows", () => {
+    const at = (h: number, m: number) => new Date(2026, 4, 10, h, m);
+    expect(isSlotClosed("2026-05-10", "06:00", at(5, 20))).toBe(false);
+    expect(isSlotClosed("2026-05-10", "06:00", at(5, 31))).toBe(true);
+    expect(windowLabel("06:00", "08:00")).toBe("6 – 8 AM");
+    expect(windowLabel("17:00", "19:00")).toBe("5 – 7 PM");
   });
 });
