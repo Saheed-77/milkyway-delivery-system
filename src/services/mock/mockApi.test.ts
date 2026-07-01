@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { mockApi as api, resetDemoData } from "./mockApi";
+import { isDispatchable, mockApi as api, resetDemoData } from "./mockApi";
 import { getStore } from "./store";
 
 /** The demo backend must enforce the same rules as the Postgres RPCs. */
@@ -92,9 +92,14 @@ describe("demo backend business rules", () => {
 
   it("auto-assigns waiting orders to the nearest rider with capacity", async () => {
     await api.auth.demoSignIn!("admin");
-    const waiting = getStore().db.orders.filter((o) => o.status === "pending" && !o.delivery_person_id).length;
-    expect(waiting).toBeGreaterThan(0);
-    expect(await api.delivery.autoAssign()).toBe(waiting);
-    expect(getStore().db.orders.some((o) => o.status === "pending" && !o.delivery_person_id)).toBe(false);
+    const open = () => getStore().db.orders.filter((o) => o.status === "pending" && !o.delivery_person_id);
+    const due = open().filter(isDispatchable).length;
+    const scheduled = open().length - due;
+    expect(due).toBeGreaterThan(0);
+    expect(scheduled).toBeGreaterThan(0); // tomorrow's slot orders
+    expect(await api.delivery.autoAssign()).toBe(due);
+    // orders for later windows wait until 90 minutes before their slot
+    expect(open().length).toBe(scheduled);
+    expect(open().some(isDispatchable)).toBe(false);
   });
 });
