@@ -558,10 +558,13 @@ begin
     from public.wallet_transactions where user_id = s.customer_id and status = 'completed';
     continue when v_balance < v_total;
 
-    -- preferred window first, then the earliest window with room
+    -- preferred window first, then the earliest open window with room
+    -- (null = express when every window that day has already closed)
+    v_slot_id := null;
     select ds.id into v_slot_id
     from public.delivery_slots ds
     where ds.slot_date = p_date and ds.is_active
+      and public.slot_starts_at(ds.slot_date, ds.start_time) - interval '30 minutes' > now()
       and (select count(*) from public.orders o where o.delivery_slot_id = ds.id and o.status <> 'cancelled') < ds.capacity
     order by (ds.start_time = s.preferred_slot_start) desc nulls last, ds.start_time
     limit 1;

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addDays, toLocalISODate } from "@/lib/format";
 import { mockApi as api, resetDemoData } from "./mockApi";
 import { getStore } from "./store";
@@ -131,6 +131,23 @@ describe("subscription skips and vacations", () => {
     await api.subscriptions.setSkips(sub.id, [tomorrow], false);
     await api.auth.demoSignIn!("admin");
     expect(await api.stock.reserveTomorrow()).toBe(Math.ceil(demandWith + sub.quantity));
+  });
+
+  it("never bills into a window that has already closed", async () => {
+    const late = new Date();
+    late.setHours(22, 0, 0, 0); // every window today has passed
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(late);
+    try {
+      await api.auth.demoSignIn!("admin");
+      const created = await api.subscriptions.generateOrders(toLocalISODate());
+      expect(created).toBeGreaterThan(0);
+      const fresh = getStore().db.orders.filter((o) => o.source === "subscription" && o.created_at >= new Date(late.getTime() - 60_000).toISOString());
+      expect(fresh.length).toBe(created);
+      expect(fresh.every((o) => !o.delivery_slot_id)).toBe(true); // express instead of a past slot
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("bills a due day into the preferred delivery window", async () => {

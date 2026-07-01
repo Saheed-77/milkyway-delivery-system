@@ -358,9 +358,14 @@ function subscriptionDemandOn(date: string): number {
     .reduce((sum, x) => sum + x.quantity, 0);
 }
 
-/** Pick the subscription's preferred window on a date, falling back to the next one with room. */
+/**
+ * Pick the subscription's preferred window on a date, falling back to the next
+ * open one; undefined (express) when every window that day has already closed.
+ */
 function slotForSubscription(sub: DbSubscription, date: string): DbSlot | undefined {
-  const slots = ensureSlots(date, 1).filter((x) => x.is_active && slotBooked(x.id) < x.capacity);
+  const slots = ensureSlots(date, 1).filter(
+    (x) => x.is_active && slotBooked(x.id) < x.capacity && !isSlotClosed(x.slot_date, x.start_time)
+  );
   return slots.find((x) => x.start_time === sub.preferred_slot_start) ?? slots[0];
 }
 
