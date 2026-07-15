@@ -186,7 +186,10 @@ export default function TrackOrder() {
             order.status === "pending" && (
               <Card>
                 <CardContent className="flex items-center gap-3 p-5 text-sm text-muted-foreground">
-                  <Navigation className="h-5 w-5 text-primary" /> We're finding the nearest rider for you…
+                  <Navigation className="h-5 w-5 shrink-0 text-primary" />
+                  {order.delivery_slot
+                    ? `Scheduled for ${slotLabel(order.delivery_slot)}. A rider is assigned about 90 minutes before your window.`
+                    : "We're finding the nearest rider for you…"}
                 </CardContent>
               </Card>
             )
