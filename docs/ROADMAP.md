@@ -13,6 +13,12 @@ Status key: ✅ shipped · 🟡 suggested next · 🔭 later
 - ✅ Subscription billing into delivery orders (`generate_subscription_orders`)
 - ✅ Realtime updates (Supabase Realtime in live mode, store events in the demo)
 
+### Payments, slots & subscriptions
+- ✅ Razorpay-style test-mode checkout — UPI (QR / UPI ID), cards, netbanking, wallets — for wallet top-ups and online orders
+- ✅ Refund-to-source on cancellation and automatic refunds when an order can't be created after payment
+- ✅ Delivery time slots with capacity, cutoffs and an admin capacity planner; express delivery option
+- ✅ Vacation mode and skip-a-day for subscriptions, preferred delivery window, skip-aware billing and stock reservation
+
 ### Product & UX
 - ✅ Full UI redesign with dark mode, responsive layouts and a mobile bottom bar
 - ✅ Built-in demo mode (no backend) with one-click role switching — deployable to Vercel as-is
@@ -43,13 +49,13 @@ Status key: ✅ shipped · 🟡 suggested next · 🔭 later
 ## Suggested next
 
 ### Payments & money
-- 🟡 Razorpay / UPI payment gateway; credit wallets only from a verified webhook (replace the demo recharge)
+- 🟡 Switch the test-mode gateway to live Razorpay: server-created orders + webhook signature verification
 - 🟡 GST-compliant invoices and monthly statements by email
 - 🔭 Auto-recharge and low-balance reminders before subscription billing
 
 ### Customers
-- 🟡 Delivery time-slot selection (the `delivery_slots` table already exists)
-- 🟡 Vacation mode / skip-a-day for subscriptions
+- 🟡 Per-area slot capacity and dynamic delivery fees for express orders
+- 🟡 Stock forecasting for future-dated slots (today's stock is checked at order time)
 - 🟡 Ratings and feedback per delivery; issue reporting (spilt/late/missing)
 - 🔭 Referral credits and promo codes
 
